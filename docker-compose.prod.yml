@@ -1,0 +1,43 @@
+
+version: '3.8'
+
+services:
+  sqlserver:
+    environment:
+      - MSSQL_PID=Standard
+    volumes:
+      - /var/lib/docker/volumes/helpdesk360_sqlserver_data:/var/opt/mssql
+
+  backend:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=https://+:443;http://+:80
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      - /etc/ssl/certs:/https:ro
+      - /var/log/helpdesk360:/app/logs
+
+  frontend:
+    build:
+      args:
+        - API_URL=https://api.yourdomain.com/api
+    environment:
+      - NODE_ENV=production
+
+  # Production-specific services
+  nginx:
+    image: nginx:alpine
+    container_name: helpdesk360-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - helpdesk360-network
