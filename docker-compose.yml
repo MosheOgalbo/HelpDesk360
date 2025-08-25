@@ -1,51 +1,119 @@
 
-version: "3.9"
+version: '3.8'
+
 services:
+  # SQL Server Database
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
-    container_name: sqlserver
+    container_name: helpdesk360-sqlserver
     environment:
       - ACCEPT_EULA=Y
       - SA_PASSWORD=YourStrong!Passw0rd
+      - MSSQL_PID=Developer
     ports:
       - "1433:1433"
     volumes:
-      - mssql_data:/var/opt/mssql
-      - ./sql:/docker-entrypoint-initdb.d  # scripts mounted (you'll run them via sqlcmd)
+      - sqlserver_data:/var/opt/mssql
+      - ./sql/init:/docker-entrypoint-initdb.d
+    networks:
+      - helpdesk360-network
     healthcheck:
-      test: ["CMD", "/opt/mssql-tools18/bin/sqlcmd", "-C", "-S", "localhost", "-U", "sa", "-P", "YourStrong!Passw0rd", "-Q", "SELECT 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 30
+      test: ["CMD-SHELL", "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P YourStrong!Passw0rd -Q 'SELECT 1' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
 
-  api:
+  # .NET Core API Backend
+  backend:
     build:
-      context: .
-      dockerfile: ./HelpDesk360.API/Dockerfile
-    container_name: helpdesk360_api
+      context: ./backend
+      dockerfile: HelpDesk360.API/Dockerfile
+    container_name: helpdesk360-backend
     environment:
-      - ASPNETCORE_URLS=http://+:8080
       - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=HelpDesk360;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=HelpDesk360;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=true;MultipleActiveResultSets=true
+      - CORS__AllowedOrigins__0=http://localhost:4200
+      - CORS__AllowedOrigins__1=http://frontend:80
     ports:
-      - "8080:8080"
+      - "5000:8080"
     depends_on:
       sqlserver:
         condition: service_healthy
-
-  frontend:
-    image: node:20-alpine
-    container_name: helpdesk360_frontend
-    working_dir: /app
     volumes:
-      - ./helpdesk360-frontend:/app
-    command: sh -c "npm install && npm run start"
+      - backend_logs:/app/logs
+    networks:
+      - helpdesk360-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Angular Frontend
+  frontend:
+    build:
+      context: ./frontend/helpdesk360-frontend
+      dockerfile: Dockerfile
+      args:
+        - API_URL=http://localhost:5000/api
+    container_name: helpdesk360-frontend
     ports:
-      - "4200:4200"
-    environment:
-      - NG_CLI_ANALYTICS=false
+      - "4200:80"
     depends_on:
-      - api
+      backend:
+        condition: service_healthy
+    networks:
+      - helpdesk360-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:80 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis Cache (Optional - for future scaling)
+  redis:
+    image: redis:7-alpine
+    container_name: helpdesk360-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass YourRedisPassword123
+    volumes:
+      - redis_data:/data
+    networks:
+      - helpdesk360-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Seq Logging (Optional - for centralized logging)
+  seq:
+    image: datalust/seq:latest
+    container_name: helpdesk360-seq
+    environment:
+      - ACCEPT_EULA=Y
+    ports:
+      - "5341:80"
+    volumes:
+      - seq_data:/data
+    networks:
+      - helpdesk360-network
+
+networks:
+  helpdesk360-network:
+    driver: bridge
+    name: helpdesk360-network
 
 volumes:
-  mssql_data:
+  sqlserver_data:
+    name: helpdesk360-sqlserver-data
+  backend_logs:
+    name: helpdesk360-backend-logs
+  redis_data:
+    name: helpdesk360-redis-data
+  seq_data:
+    name: helpdesk360-seq-data

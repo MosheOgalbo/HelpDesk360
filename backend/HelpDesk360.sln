@@ -1,24 +1,28 @@
+﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.5.2.0
+VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HelpDesk360.API", "HelpDesk360.API\HelpDesk360.API.csproj", "{CC4F5906-3627-D722-7BBD-90C2282D91B9}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HelpDesk360.API", "HelpDesk360.API\HelpDesk360.API.csproj", "{877AB76A-9091-4E8E-8C7F-D8CC557D63CC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HelpDesk360.Tests", "HelpDesk360.Tests\HelpDesk360.Tests.csproj", "{22CC1C7D-94B4-451B-A1A5-71A3A90717D0}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
-	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{CC4F5906-3627-D722-7BBD-90C2282D91B9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{CC4F5906-3627-D722-7BBD-90C2282D91B9}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{CC4F5906-3627-D722-7BBD-90C2282D91B9}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{CC4F5906-3627-D722-7BBD-90C2282D91B9}.Release|Any CPU.Build.0 = Release|Any CPU
-	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
-	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {C21B8EC1-F1CC-4A6D-A9EC-E3EFB368824E}
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{877AB76A-9091-4E8E-8C7F-D8CC557D63CC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{877AB76A-9091-4E8E-8C7F-D8CC557D63CC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{877AB76A-9091-4E8E-8C7F-D8CC557D63CC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{877AB76A-9091-4E8E-8C7F-D8CC557D63CC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{22CC1C7D-94B4-451B-A1A5-71A3A90717D0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{22CC1C7D-94B4-451B-A1A5-71A3A90717D0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{22CC1C7D-94B4-451B-A1A5-71A3A90717D0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{22CC1C7D-94B4-451B-A1A5-71A3A90717D0}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
