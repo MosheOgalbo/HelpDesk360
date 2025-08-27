@@ -4,109 +4,93 @@ services:
   # SQL Server Database
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
-    container_name: helpdesk360-sqlserver
+    container_name: helpdesk360-db
     environment:
-      - ACCEPT_EULA=Y
-      - SA_PASSWORD=YourStrong!Passw0rd
-      - MSSQL_PID=Developer
+      ACCEPT_EULA: Y
+      SA_PASSWORD: "YourStrong@Passw0rd"
+      MSSQL_PID: "Developer"
     ports:
       - "1433:1433"
     volumes:
       - sqlserver_data:/var/opt/mssql
+      - ./database/init:/docker-entrypoint-initdb.d
     networks:
       - helpdesk360-network
     healthcheck:
-      test: ["CMD-SHELL", "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P YourStrong!Passw0rd -Q 'SELECT 1' || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
+      test: ["CMD-SHELL", "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P YourStrong@Passw0rd -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      retries: 10
+      start_period: 10s
+      timeout: 3s
 
-  # .NET Core API Backend
-  backend:
+  # HelpDesk360 Backend API
+  helpdesk360-api:
     build:
       context: ./backend
-      dockerfile: HelpDesk360.API/Dockerfile
-    container_name: helpdesk360-backend
+      dockerfile: docker/Dockerfile.api
+    container_name: helpdesk360-api
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:8080
-      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=HelpDesk360;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=true;MultipleActiveResultSets=true
-      - CORS__AllowedOrigins__0=http://localhost:4200
-      - CORS__AllowedOrigins__1=http://frontend:80
+      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=HelpDesk360;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=true;
     ports:
-      - "5000:8080"
+      - "8080:8080"
     depends_on:
       sqlserver:
         condition: service_healthy
     volumes:
-      - backend_logs:/app/logs
+      - ./logs:/app/logs
     networks:
       - helpdesk360-network
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+    restart: unless-stopped
 
-  # Angular Frontend
-  frontend:
-    build:
-      context: ./frontend/helpdesk360-frontend
-      dockerfile: Dockerfile
-      args:
-        - API_URL=http://backend:8080/api
-    container_name: helpdesk360-frontend
-    ports:
-      - "4200:80"
+  # HelpDesk360 Frontend (Angular) - READY FOR FUTURE
+  # Uncomment when frontend is added:
+  # helpdesk360-frontend:
+  #   build:
+  #     context: ./frontend
+  #     dockerfile: Dockerfile
+  #   container_name: helpdesk360-frontend
+  #   environment:
+  #     - NODE_ENV=production
+  #     - API_BASE_URL=http://helpdesk360-api:8080/api
+  #   ports:
+  #     - "4200:80"
+  #   depends_on:
+  #     - helpdesk360-api
+  #   networks:
+  #     - helpdesk360-network
+  #   restart: unless-stopped
+
+  # Database Initialization
+  db-init:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: helpdesk360-db-init
     depends_on:
-      backend:
+      sqlserver:
         condition: service_healthy
-    networks:
-      - helpdesk360-network
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:80 || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  # Redis Cache (Optional - for future scaling)
-  redis:
-    image: redis:7-alpine
-    container_name: helpdesk360-redis
-    ports:
-      - "6379:6379"
-    command: redis-server --requirepass YourRedisPassword123
     volumes:
-      - redis_data:/data
+      - ./database/init:/scripts
     networks:
       - helpdesk360-network
-    healthcheck:
-      test: ["CMD", "redis-cli", "-a", "YourRedisPassword123", "PING"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+    command: >
+      bash -c "
+        echo 'Waiting for SQL Server to be ready...' &&
+        sleep 10 &&
+        echo 'Initializing database...' &&
+        /opt/mssql-tools/bin/sqlcmd -S sqlserver -U sa -P 'YourStrong@Passw0rd' -i /scripts/01-create-database.sql &&
+        /opt/mssql-tools/bin/sqlcmd -S sqlserver -U sa -P 'YourStrong@Passw0rd' -i /scripts/02-create-tables.sql &&
+        /opt/mssql-tools/bin/sqlcmd -S sqlserver -U sa -P 'YourStrong@Passw0rd' -i /scripts/03-create-indexes.sql &&
+        /opt/mssql-tools/bin/sqlcmd -S sqlserver -U sa -P 'YourStrong@Passw0rd' -i /scripts/04-create-stored-procedures.sql &&
+        /opt/mssql-tools/bin/sqlcmd -S sqlserver -U sa -P 'YourStrong@Passw0rd' -i /scripts/05-seed-data.sql &&
+        echo 'Database initialization completed successfully!'
+      "
+    restart: "no"
 
-  # Seq Logging (Optional - for centralized logging)
-  seq:
-    image: datalust/seq:latest
-    container_name: helpdesk360-seq
-    environment:
-      - ACCEPT_EULA=Y
-    ports:
-      - "5341:80"
-    volumes:
-      - seq_data:/data
-    networks:
-      - helpdesk360-network
+volumes:
+  sqlserver_data:
+    driver: local
 
 networks:
   helpdesk360-network:
     driver: bridge
-
-volumes:
-  sqlserver_data:
-  backend_logs:
-  redis_data:
-  seq_data:

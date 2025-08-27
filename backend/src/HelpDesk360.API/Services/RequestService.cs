@@ -1,0 +1,1 @@
+namespace HelpDesk360.API.Services { public class RequestService : IRequestService { } }

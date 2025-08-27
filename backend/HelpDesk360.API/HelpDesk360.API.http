@@ -1,6 +1,0 @@
-@HelpDesk360.API_HostAddress = http://localhost:5140
-
-GET {{HelpDesk360.API_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###
