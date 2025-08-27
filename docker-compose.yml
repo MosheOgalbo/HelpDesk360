@@ -1,4 +1,3 @@
-
 version: '3.8'
 
 services:
@@ -14,7 +13,6 @@ services:
       - "1433:1433"
     volumes:
       - sqlserver_data:/var/opt/mssql
-      - ./sql/init:/docker-entrypoint-initdb.d
     networks:
       - helpdesk360-network
     healthcheck:
@@ -58,7 +56,7 @@ services:
       context: ./frontend/helpdesk360-frontend
       dockerfile: Dockerfile
       args:
-        - API_URL=http://localhost:5000/api
+        - API_URL=http://backend:8080/api
     container_name: helpdesk360-frontend
     ports:
       - "4200:80"
@@ -85,7 +83,7 @@ services:
     networks:
       - helpdesk360-network
     healthcheck:
-      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      test: ["CMD", "redis-cli", "-a", "YourRedisPassword123", "PING"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -106,14 +104,9 @@ services:
 networks:
   helpdesk360-network:
     driver: bridge
-    name: helpdesk360-network
 
 volumes:
   sqlserver_data:
-    name: helpdesk360-sqlserver-data
   backend_logs:
-    name: helpdesk360-backend-logs
   redis_data:
-    name: helpdesk360-redis-data
   seq_data:
-    name: helpdesk360-seq-data

@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("HelpDesk360.API")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+844d0eab8631163d4ffa88dd9541a20e4f48c5ba")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+8b789a9f170947fb4383fd340604c6b4ea352188")]
 [assembly: System.Reflection.AssemblyProductAttribute("HelpDesk360.API")]
 [assembly: System.Reflection.AssemblyTitleAttribute("HelpDesk360.API")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
