@@ -1,14 +1,11 @@
--- Create HelpDesk360 Database if it doesn't exist
-IF NOT EXISTS (SELECT name FROM sys.databases WHERE name = 'HelpDesk360')
-BEGIN
-    CREATE DATABASE HelpDesk360;
-    PRINT 'HelpDesk360 database created successfully';
-END
-ELSE
-BEGIN
-    PRINT 'HelpDesk360 database already exists';
-END
+-- Create database
+CREATE DATABASE HelpDesk360
 GO
 
-USE HelpDesk360;
+-- Use database
+USE HelpDesk360
+GO
+
+-- Select message
+SELECT 'HelpDesk360 database created successfully' as message;
 GO

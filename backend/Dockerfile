@@ -17,7 +17,7 @@ RUN dotnet restore "src/HelpDesk360.API/HelpDesk360.API.csproj"
 
 # Copy everything else and build
 COPY . .
-WORKDIR "/src/src/HelpDesk360.API"
+WORKDIR "/src/HelpDesk360.API"
 RUN dotnet build "HelpDesk360.API.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
 # Publish the application

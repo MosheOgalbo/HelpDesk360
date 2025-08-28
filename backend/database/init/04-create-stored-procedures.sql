@@ -1,156 +1,106 @@
 USE HelpDesk360;
-GO
 
--- Drop existing stored procedure if exists
-IF OBJECT_ID('sp_GetMonthlyRequestsReport', 'P') IS NOT NULL
+DROP PROCEDURE IF EXISTS sp_GetMonthlyRequestsReport;
+
+DELIMITER //
+
+CREATE PROCEDURE sp_GetMonthlyRequestsReport(
+    IN p_Year INT,
+    IN p_Month INT
+)
 BEGIN
-    DROP PROCEDURE sp_GetMonthlyRequestsReport;
-    PRINT 'Existing sp_GetMonthlyRequestsReport procedure dropped';
-END
-GO
+    DECLARE v_StartDate DATETIME;
+    DECLARE v_EndDate DATETIME;
+    DECLARE v_PrevStartDate DATETIME;
+    DECLARE v_PrevEndDate DATETIME;
+    DECLARE v_PrevYearStartDate DATETIME;
+    DECLARE v_PrevYearEndDate DATETIME;
 
--- Create the monthly requests report stored procedure
-CREATE PROCEDURE sp_GetMonthlyRequestsReport
-    @Year INT,
-    @Month INT
-AS
-BEGIN
-    SET NOCOUNT ON;
+    -- Calculate dates
+    SET v_StartDate = STR_TO_DATE(CONCAT(p_Year, '-', LPAD(p_Month, 2, '0'), '-01'), '%Y-%m-%d');
+    SET v_EndDate = DATE_ADD(v_StartDate, INTERVAL 1 MONTH);
 
-    DECLARE @StartDate DATETIME2 = DATEFROMPARTS(@Year, @Month, 1);
-    DECLARE @EndDate DATETIME2 = DATEADD(MONTH, 1, @StartDate);
+    -- Previous month
+    SET v_PrevStartDate = DATE_SUB(v_StartDate, INTERVAL 1 MONTH);
+    SET v_PrevEndDate = v_StartDate;
 
-    -- Previous month calculations
-    DECLARE @PrevMonth INT = CASE WHEN @Month = 1 THEN 12 ELSE @Month - 1 END;
-    DECLARE @PrevYear INT = CASE WHEN @Month = 1 THEN @Year - 1 ELSE @Year END;
-    DECLARE @PrevStartDate DATETIME2 = DATEFROMPARTS(@PrevYear, @PrevMonth, 1);
-    DECLARE @PrevEndDate DATETIME2 = DATEADD(MONTH, 1, @PrevStartDate);
-
-    -- Previous year same month calculations
-    DECLARE @PrevYearStartDate DATETIME2 = DATEFROMPARTS(@Year - 1, @Month, 1);
-    DECLARE @PrevYearEndDate DATETIME2 = DATEADD(MONTH, 1, @PrevYearStartDate);
+    -- Previous year same month
+    SET v_PrevYearStartDate = DATE_SUB(v_StartDate, INTERVAL 1 YEAR);
+    SET v_PrevYearEndDate = DATE_SUB(v_EndDate, INTERVAL 1 YEAR);
 
     -- Main report data
-    WITH CurrentMonthData AS (
-        SELECT
-            COUNT(*) as TotalRequests,
-            COUNT(CASE WHEN Status = 1 THEN 1 END) as OpenRequests,
-            COUNT(CASE WHEN Status = 2 THEN 1 END) as InProgressRequests,
-            COUNT(CASE WHEN Status = 3 THEN 1 END) as ResolvedRequests,
-            COUNT(CASE WHEN Status = 4 THEN 1 END) as ClosedRequests,
-            COUNT(CASE WHEN Priority = 4 THEN 1 END) as CriticalRequests,
-            COUNT(CASE WHEN Priority = 3 THEN 1 END) as HighRequests,
-            COUNT(CASE WHEN Priority = 2 THEN 1 END) as MediumRequests,
-            COUNT(CASE WHEN Priority = 1 THEN 1 END) as LowRequests,
-            COALESCE(AVG(
-                CASE
-                    WHEN ResolvedAt IS NOT NULL
-                    THEN DATEDIFF(HOUR, CreatedAt, ResolvedAt)
-                END
-            ), 0) as AverageResolutionHours
-        FROM Requests
-        WHERE CreatedAt >= @StartDate AND CreatedAt < @EndDate
-    ),
-    PreviousMonthData AS (
-        SELECT COUNT(*) as PreviousMonthTotal
-        FROM Requests
-        WHERE CreatedAt >= @PrevStartDate AND CreatedAt < @PrevEndDate
-    ),
-    PreviousYearData AS (
-        SELECT COUNT(*) as PreviousYearSameMonthTotal
-        FROM Requests
-        WHERE CreatedAt >= @PrevYearStartDate AND CreatedAt < @PrevYearEndDate
-    ),
-    DepartmentStats AS (
-        SELECT
-            r.DepartmentId,
-            rd.Name as DepartmentName,
-            COUNT(*) as RequestCount,
-            COALESCE(AVG(
-                CASE
-                    WHEN r.ResolvedAt IS NOT NULL
-                    THEN DATEDIFF(HOUR, r.CreatedAt, r.ResolvedAt)
-                END
-            ), 0) as AverageResolutionHours,
-            CAST(COUNT(*) * 100.0 / (SELECT TotalRequests FROM CurrentMonthData) as DECIMAL(5,2)) as Percentage
-        FROM Requests r
-        INNER JOIN RequestDepartments rd ON r.DepartmentId = rd.Id
-        WHERE r.CreatedAt >= @StartDate AND r.CreatedAt < @EndDate
-        GROUP BY r.DepartmentId, rd.Name
-    )
-
-    -- Main result set
     SELECT
-        cmd.TotalRequests,
-        cmd.OpenRequests,
-        cmd.InProgressRequests,
-        cmd.ResolvedRequests,
-        cmd.ClosedRequests,
-        cmd.AverageResolutionHours,
-        cmd.CriticalRequests,
-        cmd.HighRequests,
-        cmd.MediumRequests,
-        cmd.LowRequests,
-        pmd.PreviousMonthTotal,
-        (cmd.TotalRequests - pmd.PreviousMonthTotal) as TotalChangeFromPrevious,
+        COUNT(*) as TotalRequests,
+        COUNT(CASE WHEN Status = 1 THEN 1 END) as OpenRequests,
+        COUNT(CASE WHEN Status = 2 THEN 1 END) as InProgressRequests,
+        COUNT(CASE WHEN Status = 3 THEN 1 END) as ResolvedRequests,
+        COUNT(CASE WHEN Status = 4 THEN 1 END) as ClosedRequests,
+        COALESCE(AVG(CASE WHEN ResolvedAt IS NOT NULL THEN TIMESTAMPDIFF(HOUR, CreatedAt, ResolvedAt) END), 0) as AverageResolutionHours,
+        COUNT(CASE WHEN Priority = 4 THEN 1 END) as CriticalRequests,
+        COUNT(CASE WHEN Priority = 3 THEN 1 END) as HighRequests,
+        COUNT(CASE WHEN Priority = 2 THEN 1 END) as MediumRequests,
+        COUNT(CASE WHEN Priority = 1 THEN 1 END) as LowRequests,
+        -- Previous comparisons
+        (SELECT COUNT(*) FROM Requests WHERE CreatedAt >= v_PrevStartDate AND CreatedAt < v_PrevEndDate) as PreviousMonthTotal,
+        (COUNT(*) - (SELECT COUNT(*) FROM Requests WHERE CreatedAt >= v_PrevStartDate AND CreatedAt < v_PrevEndDate)) as TotalChangeFromPrevious,
         CASE
-            WHEN pmd.PreviousMonthTotal = 0 THEN 0
-            ELSE CAST((cmd.TotalRequests - pmd.PreviousMonthTotal) * 100.0 / pmd.PreviousMonthTotal as DECIMAL(5,2))
+            WHEN (SELECT COUNT(*) FROM Requests WHERE CreatedAt >= v_PrevStartDate AND CreatedAt < v_PrevEndDate) = 0 THEN 0
+            ELSE ROUND((COUNT(*) - (SELECT COUNT(*) FROM Requests WHERE CreatedAt >= v_PrevStartDate AND CreatedAt < v_PrevEndDate)) * 100.0 / (SELECT COUNT(*) FROM Requests WHERE CreatedAt >= v_PrevStartDate AND CreatedAt < v_PrevEndDate), 2)
         END as TotalChangePercentage,
-        pyd.PreviousYearSameMonthTotal,
-        (cmd.TotalRequests - pyd.PreviousYearSameMonthTotal) as TotalChangeFromPreviousYear,
+        -- Previous year
+        (SELECT COUNT(*) FROM Requests WHERE CreatedAt >= v_PrevYearStartDate AND CreatedAt < v_PrevYearEndDate) as PreviousYearSameMonthTotal,
+        (COUNT(*) - (SELECT COUNT(*) FROM Requests WHERE CreatedAt >= v_PrevYearStartDate AND CreatedAt < v_PrevYearEndDate)) as TotalChangeFromPreviousYear,
         CASE
-            WHEN pyd.PreviousYearSameMonthTotal = 0 THEN 0
-            ELSE CAST((cmd.TotalRequests - pyd.PreviousYearSameMonthTotal) * 100.0 / pyd.PreviousYearSameMonthTotal as DECIMAL(5,2))
+            WHEN (SELECT COUNT(*) FROM Requests WHERE CreatedAt >= v_PrevYearStartDate AND CreatedAt < v_PrevYearEndDate) = 0 THEN 0
+            ELSE ROUND((COUNT(*) - (SELECT COUNT(*) FROM Requests WHERE CreatedAt >= v_PrevYearStartDate AND CreatedAt < v_PrevYearEndDate)) * 100.0 / (SELECT COUNT(*) FROM Requests WHERE CreatedAt >= v_PrevYearStartDate AND CreatedAt < v_PrevYearEndDate), 2)
         END as TotalChangePercentageFromPreviousYear,
-        -- Department data (will be null for main record)
-        CAST(NULL as INT) as DepartmentId,
-        CAST(NULL as NVARCHAR(100)) as DepartmentName,
-        CAST(NULL as INT) as DeptRequestCount,
-        CAST(NULL as DECIMAL(10,2)) as DeptAverageResolutionHours,
-        CAST(NULL as DECIMAL(5,2)) as DeptPercentage
-    FROM CurrentMonthData cmd
-    CROSS JOIN PreviousMonthData pmd
-    CROSS JOIN PreviousYearData pyd
+        -- Null department fields for main record
+        NULL as DepartmentId,
+        NULL as DepartmentName,
+        NULL as DeptRequestCount,
+        NULL as DeptAverageResolutionHours,
+        NULL as DeptPercentage
+    FROM Requests
+    WHERE CreatedAt >= v_StartDate AND CreatedAt < v_EndDate;
 
-    UNION ALL
-
-    -- Department stats
+    -- Department statistics
     SELECT
-        cmd.TotalRequests,
-        cmd.OpenRequests,
-        cmd.InProgressRequests,
-        cmd.ResolvedRequests,
-        cmd.ClosedRequests,
-        cmd.AverageResolutionHours,
-        cmd.CriticalRequests,
-        cmd.HighRequests,
-        cmd.MediumRequests,
-        cmd.LowRequests,
-        pmd.PreviousMonthTotal,
-        (cmd.TotalRequests - pmd.PreviousMonthTotal) as TotalChangeFromPrevious,
+        -- Main data again for consistency
+        (SELECT COUNT(*) FROM Requests WHERE CreatedAt >= v_StartDate AND CreatedAt < v_EndDate) as TotalRequests,
+        (SELECT COUNT(CASE WHEN Status = 1 THEN 1 END) FROM Requests WHERE CreatedAt >= v_StartDate AND CreatedAt < v_EndDate) as OpenRequests,
+        (SELECT COUNT(CASE WHEN Status = 2 THEN 1 END) FROM Requests WHERE CreatedAt >= v_StartDate AND CreatedAt < v_EndDate) as InProgressRequests,
+        (SELECT COUNT(CASE WHEN Status = 3 THEN 1 END) FROM Requests WHERE CreatedAt >= v_StartDate AND CreatedAt < v_EndDate) as ResolvedRequests,
+        (SELECT COUNT(CASE WHEN Status = 4 THEN 1 END) FROM Requests WHERE CreatedAt >= v_StartDate AND CreatedAt < v_EndDate) as ClosedRequests,
+        (SELECT COALESCE(AVG(CASE WHEN ResolvedAt IS NOT NULL THEN TIMESTAMPDIFF(HOUR, CreatedAt, ResolvedAt) END), 0) FROM Requests WHERE CreatedAt >= v_StartDate AND CreatedAt < v_EndDate) as AverageResolutionHours,
+        (SELECT COUNT(CASE WHEN Priority = 4 THEN 1 END) FROM Requests WHERE CreatedAt >= v_StartDate AND CreatedAt < v_EndDate) as CriticalRequests,
+        (SELECT COUNT(CASE WHEN Priority = 3 THEN 1 END) FROM Requests WHERE CreatedAt >= v_StartDate AND CreatedAt < v_EndDate) as HighRequests,
+        (SELECT COUNT(CASE WHEN Priority = 2 THEN 1 END) FROM Requests WHERE CreatedAt >= v_StartDate AND CreatedAt < v_EndDate) as MediumRequests,
+        (SELECT COUNT(CASE WHEN Priority = 1 THEN 1 END) FROM Requests WHERE CreatedAt >= v_StartDate AND CreatedAt < v_EndDate) as LowRequests,
+        (SELECT COUNT(*) FROM Requests WHERE CreatedAt >= v_PrevStartDate AND CreatedAt < v_PrevEndDate) as PreviousMonthTotal,
+        ((SELECT COUNT(*) FROM Requests WHERE CreatedAt >= v_StartDate AND CreatedAt < v_EndDate) - (SELECT COUNT(*) FROM Requests WHERE CreatedAt >= v_PrevStartDate AND CreatedAt < v_PrevEndDate)) as TotalChangeFromPrevious,
         CASE
-            WHEN pmd.PreviousMonthTotal = 0 THEN 0
-            ELSE CAST((cmd.TotalRequests - pmd.PreviousMonthTotal) * 100.0 / pmd.PreviousMonthTotal as DECIMAL(5,2))
+            WHEN (SELECT COUNT(*) FROM Requests WHERE CreatedAt >= v_PrevStartDate AND CreatedAt < v_PrevEndDate) = 0 THEN 0
+            ELSE ROUND(((SELECT COUNT(*) FROM Requests WHERE CreatedAt >= v_StartDate AND CreatedAt < v_EndDate) - (SELECT COUNT(*) FROM Requests WHERE CreatedAt >= v_PrevStartDate AND CreatedAt < v_PrevEndDate)) * 100.0 / (SELECT COUNT(*) FROM Requests WHERE CreatedAt >= v_PrevStartDate AND CreatedAt < v_PrevEndDate), 2)
         END as TotalChangePercentage,
-        pyd.PreviousYearSameMonthTotal,
-        (cmd.TotalRequests - pyd.PreviousYearSameMonthTotal) as TotalChangeFromPreviousYear,
+        (SELECT COUNT(*) FROM Requests WHERE CreatedAt >= v_PrevYearStartDate AND CreatedAt < v_PrevYearEndDate) as PreviousYearSameMonthTotal,
+        ((SELECT COUNT(*) FROM Requests WHERE CreatedAt >= v_StartDate AND CreatedAt < v_EndDate) - (SELECT COUNT(*) FROM Requests WHERE CreatedAt >= v_PrevYearStartDate AND CreatedAt < v_PrevYearEndDate)) as TotalChangeFromPreviousYear,
         CASE
-            WHEN pyd.PreviousYearSameMonthTotal = 0 THEN 0
-            ELSE CAST((cmd.TotalRequests - pyd.PreviousYearSameMonthTotal) * 100.0 / pyd.PreviousYearSameMonthTotal as DECIMAL(5,2))
+            WHEN (SELECT COUNT(*) FROM Requests WHERE CreatedAt >= v_PrevYearStartDate AND CreatedAt < v_PrevYearEndDate) = 0 THEN 0
+            ELSE ROUND(((SELECT COUNT(*) FROM Requests WHERE CreatedAt >= v_StartDate AND CreatedAt < v_EndDate) - (SELECT COUNT(*) FROM Requests WHERE CreatedAt >= v_PrevYearStartDate AND CreatedAt < v_PrevYearEndDate)) * 100.0 / (SELECT COUNT(*) FROM Requests WHERE CreatedAt >= v_PrevYearStartDate AND CreatedAt < v_PrevYearEndDate), 2)
         END as TotalChangePercentageFromPreviousYear,
         -- Department specific data
-        ds.DepartmentId,
-        ds.DepartmentName,
-        ds.RequestCount as DeptRequestCount,
-        ds.AverageResolutionHours as DeptAverageResolutionHours,
-        ds.Percentage as DeptPercentage
-    FROM DepartmentStats ds
-    CROSS JOIN CurrentMonthData cmd
-    CROSS JOIN PreviousMonthData pmd
-    CROSS JOIN PreviousYearData pyd;
-END
-GO
+        r.DepartmentId,
+        rd.Name as DepartmentName,
+        COUNT(*) as DeptRequestCount,
+        COALESCE(AVG(CASE WHEN r.ResolvedAt IS NOT NULL THEN TIMESTAMPDIFF(HOUR, r.CreatedAt, r.ResolvedAt) END), 0) as DeptAverageResolutionHours,
+        ROUND(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM Requests WHERE CreatedAt >= v_StartDate AND CreatedAt < v_EndDate), 2) as DeptPercentage
+    FROM Requests r
+    INNER JOIN RequestDepartments rd ON r.DepartmentId = rd.Id
+    WHERE r.CreatedAt >= v_StartDate AND r.CreatedAt < v_EndDate
+    GROUP BY r.DepartmentId, rd.Name;
 
-PRINT 'sp_GetMonthlyRequestsReport procedure created successfully';
-GO
+END //
+
+DELIMITER ;
+
+SELECT 'Stored procedure created successfully' as message;

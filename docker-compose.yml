@@ -1,27 +1,34 @@
 version: '3.8'
 
 services:
-  # SQL Server Database
-  sqlserver:
-    image: mcr.microsoft.com/mssql/server:2022-latest
-    container_name: helpdesk360-db
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: helpdesk360-mysql
     environment:
-      ACCEPT_EULA: Y
-      SA_PASSWORD: "YourStrong@Passw0rd"
-      MSSQL_PID: "Developer"
+      MYSQL_ROOT_PASSWORD: "YourStrong@Passw0rd"
+      MYSQL_DATABASE: "HelpDesk360"
+      MYSQL_USER: "helpdesk360"
+      MYSQL_PASSWORD: "YourStrong@Passw0rd"
     ports:
-      - "1433:1433"
+      - "3306:3306"
     volumes:
-      - sqlserver_data:/var/opt/mssql
-      - ./database/init:/docker-entrypoint-initdb.d
+      - mysql_data:/var/lib/mysql
+      - ./database/init:/docker-entrypoint-initdb.d:ro
     networks:
       - helpdesk360-network
+    command: >
+      --default-authentication-plugin=mysql_native_password
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --innodb-buffer-pool-size=256M
+      --sql-mode=STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_VALUE_ON_ZERO
     healthcheck:
-      test: ["CMD-SHELL", "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P YourStrong@Passw0rd -Q 'SELECT 1' || exit 1"]
-      interval: 10s
-      retries: 10
-      start_period: 10s
-      timeout: 3s
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pYourStrong@Passw0rd"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
   # HelpDesk360 Backend API
   helpdesk360-api:
@@ -32,17 +39,24 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:8080
-      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=HelpDesk360;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=true;
+      - ASPNETCORE_HTTP_PORTS=8080
+      - ConnectionStrings__DefaultConnection=server=mysql;port=3306;database=HelpDesk360;uid=root;pwd=YourStrong@Passw0rd;charset=utf8mb4;AllowPublicKeyRetrieval=true;
     ports:
       - "8080:8080"
     depends_on:
-      sqlserver:
+      mysql:
         condition: service_healthy
     volumes:
       - ./logs:/app/logs
     networks:
       - helpdesk360-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/swagger", "||", "exit", "1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
   # HelpDesk360 Frontend (Angular) - READY FOR FUTURE
   # Uncomment when frontend is added:
@@ -62,33 +76,8 @@ services:
   #     - helpdesk360-network
   #   restart: unless-stopped
 
-  # Database Initialization
-  db-init:
-    image: mcr.microsoft.com/mssql/server:2022-latest
-    container_name: helpdesk360-db-init
-    depends_on:
-      sqlserver:
-        condition: service_healthy
-    volumes:
-      - ./database/init:/scripts
-    networks:
-      - helpdesk360-network
-    command: >
-      bash -c "
-        echo 'Waiting for SQL Server to be ready...' &&
-        sleep 10 &&
-        echo 'Initializing database...' &&
-        /opt/mssql-tools/bin/sqlcmd -S sqlserver -U sa -P 'YourStrong@Passw0rd' -i /scripts/01-create-database.sql &&
-        /opt/mssql-tools/bin/sqlcmd -S sqlserver -U sa -P 'YourStrong@Passw0rd' -i /scripts/02-create-tables.sql &&
-        /opt/mssql-tools/bin/sqlcmd -S sqlserver -U sa -P 'YourStrong@Passw0rd' -i /scripts/03-create-indexes.sql &&
-        /opt/mssql-tools/bin/sqlcmd -S sqlserver -U sa -P 'YourStrong@Passw0rd' -i /scripts/04-create-stored-procedures.sql &&
-        /opt/mssql-tools/bin/sqlcmd -S sqlserver -U sa -P 'YourStrong@Passw0rd' -i /scripts/05-seed-data.sql &&
-        echo 'Database initialization completed successfully!'
-      "
-    restart: "no"
-
 volumes:
-  sqlserver_data:
+  mysql_data:
     driver: local
 
 networks:

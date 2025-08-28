@@ -27,10 +27,11 @@ namespace HelpDesk360.API.Data
                 entity.HasIndex(e => new { e.DepartmentId, e.Status });
 
                 entity.Property(e => e.CreatedAt)
-                      .HasDefaultValueSql("GETUTCDATE()");
+                      .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
 
                 entity.Property(e => e.UpdatedAt)
-                      .HasDefaultValueSql("GETUTCDATE()");
+                      .HasDefaultValueSql("CURRENT_TIMESTAMP(6)")
+                      .ValueGeneratedOnAddOrUpdate();
 
                 entity.HasOne(d => d.Department)
                       .WithMany(p => p.Requests)
@@ -45,16 +46,11 @@ namespace HelpDesk360.API.Data
                 entity.HasIndex(e => e.IsActive);
 
                 entity.Property(e => e.CreatedAt)
-                      .HasDefaultValueSql("GETUTCDATE()");
+                      .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
             });
 
-            // Seed Data
-            modelBuilder.Entity<RequestDepartment>().HasData(
-                new RequestDepartment { Id = 1, Name = "IT Support", Description = "Information Technology support requests" },
-                new RequestDepartment { Id = 2, Name = "HR", Description = "Human Resources related requests" },
-                new RequestDepartment { Id = 3, Name = "Finance", Description = "Financial and accounting requests" },
-                new RequestDepartment { Id = 4, Name = "Facilities", Description = "Office facilities and maintenance requests" }
-            );
+            // Seed Data - הוסר מכאן כי זה עובר לProgram.cs לאחר Migration
+            // נתונים נוספים יחדירו אוטומטית בעליית המערכת
         }
     }
 }

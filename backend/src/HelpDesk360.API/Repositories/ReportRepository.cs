@@ -2,8 +2,6 @@ using Microsoft.EntityFrameworkCore;
 using HelpDesk360.API.Data;
 using HelpDesk360.API.DTOs;
 using HelpDesk360.API.Repositories;
-using System.Data;
-using Microsoft.Data.SqlClient;
 using System.Globalization;
 
 namespace HelpDesk360.API.Repositories
@@ -21,50 +19,79 @@ namespace HelpDesk360.API.Repositories
         {
             var parameters = new[]
             {
-                new SqlParameter("@Year", year),
-                new SqlParameter("@Month", month)
+                new MySqlConnector.MySqlParameter("p_Year", year),
+                new MySqlConnector.MySqlParameter("p_Month", month)
             };
 
-            var result = await _context.Database
-                .SqlQueryRaw<MonthlyReportResult>("EXEC sp_GetMonthlyRequestsReport @Year, @Month", parameters)
-                .ToListAsync();
+            var connection = _context.Database.GetDbConnection();
+            await connection.OpenAsync();
 
-            if (!result.Any()) return null;
-
-            var mainData = result.First();
-            var departmentStats = result.Where(r => r.DepartmentId.HasValue)
-                .Select(r => new DepartmentStatDto
-                {
-                    DepartmentId = r.DepartmentId!.Value,
-                    DepartmentName = r.DepartmentName ?? "",
-                    RequestCount = r.DeptRequestCount ?? 0,
-                    AverageResolutionHours = r.DeptAverageResolutionHours ?? 0,
-                    Percentage = r.DeptPercentage ?? 0
-                }).ToList();
-
-            return new MonthlyReportDto
+            try
             {
-                Year = year,
-                Month = month,
-                MonthName = CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(month),
-                TotalRequests = mainData.TotalRequests,
-                OpenRequests = mainData.OpenRequests,
-                InProgressRequests = mainData.InProgressRequests,
-                ResolvedRequests = mainData.ResolvedRequests,
-                ClosedRequests = mainData.ClosedRequests,
-                AverageResolutionHours = mainData.AverageResolutionHours,
-                CriticalRequests = mainData.CriticalRequests,
-                HighRequests = mainData.HighRequests,
-                MediumRequests = mainData.MediumRequests,
-                LowRequests = mainData.LowRequests,
-                PreviousMonthTotal = mainData.PreviousMonthTotal,
-                TotalChangeFromPrevious = mainData.TotalChangeFromPrevious,
-                TotalChangePercentage = mainData.TotalChangePercentage,
-                PreviousYearSameMonthTotal = mainData.PreviousYearSameMonthTotal,
-                TotalChangeFromPreviousYear = mainData.TotalChangeFromPreviousYear,
-                TotalChangePercentageFromPreviousYear = mainData.TotalChangePercentageFromPreviousYear,
-                DepartmentStats = departmentStats
-            };
+                using var command = connection.CreateCommand();
+                command.CommandText = "CALL sp_GetMonthlyRequestsReport(@p_Year, @p_Month)";
+                command.Parameters.Add(new MySqlConnector.MySqlParameter("@p_Year", year));
+                command.Parameters.Add(new MySqlConnector.MySqlParameter("@p_Month", month));
+
+                using var reader = await command.ExecuteReaderAsync();
+
+                MonthlyReportDto? report = null;
+                var departmentStats = new List<DepartmentStatDto>();
+
+                // First result set - main report data
+                if (await reader.ReadAsync())
+                {
+                    report = new MonthlyReportDto
+                    {
+                        Year = year,
+                        Month = month,
+                        MonthName = CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(month),
+                        TotalRequests = reader.GetInt32(reader.GetOrdinal("TotalRequests")),
+                        OpenRequests = reader.GetInt32(reader.GetOrdinal("OpenRequests")),
+                        InProgressRequests = reader.GetInt32(reader.GetOrdinal("InProgressRequests")),
+                        ResolvedRequests = reader.GetInt32(reader.GetOrdinal("ResolvedRequests")),
+                        ClosedRequests = reader.GetInt32(reader.GetOrdinal("ClosedRequests")),
+                        AverageResolutionHours = reader.GetDouble(reader.GetOrdinal("AverageResolutionHours")),
+                        CriticalRequests = reader.GetInt32(reader.GetOrdinal("CriticalRequests")),
+                        HighRequests = reader.GetInt32(reader.GetOrdinal("HighRequests")),
+                        MediumRequests = reader.GetInt32(reader.GetOrdinal("MediumRequests")),
+                        LowRequests = reader.GetInt32(reader.GetOrdinal("LowRequests")),
+                        PreviousMonthTotal = reader.GetInt32(reader.GetOrdinal("PreviousMonthTotal")),
+                        TotalChangeFromPrevious = reader.GetInt32(reader.GetOrdinal("TotalChangeFromPrevious")),
+                        TotalChangePercentage = reader.GetDouble(reader.GetOrdinal("TotalChangePercentage")),
+                        PreviousYearSameMonthTotal = reader.GetInt32(reader.GetOrdinal("PreviousYearSameMonthTotal")),
+                        TotalChangeFromPreviousYear = reader.GetInt32(reader.GetOrdinal("TotalChangeFromPreviousYear")),
+                        TotalChangePercentageFromPreviousYear = reader.GetDouble(reader.GetOrdinal("TotalChangePercentageFromPreviousYear"))
+                    };
+                }
+
+                // Second result set - department statistics
+                if (await reader.NextResultAsync())
+                {
+                    while (await reader.ReadAsync())
+                    {
+                        departmentStats.Add(new DepartmentStatDto
+                        {
+                            DepartmentId = reader.GetInt32(reader.GetOrdinal("DepartmentId")),
+                            DepartmentName = reader.GetString(reader.GetOrdinal("DepartmentName")),
+                            RequestCount = reader.GetInt32(reader.GetOrdinal("DeptRequestCount")),
+                            AverageResolutionHours = reader.GetDouble(reader.GetOrdinal("DeptAverageResolutionHours")),
+                            Percentage = reader.GetDouble(reader.GetOrdinal("DeptPercentage"))
+                        });
+                    }
+                }
+
+                if (report != null)
+                {
+                    report.DepartmentStats = departmentStats;
+                }
+
+                return report;
+            }
+            finally
+            {
+                await connection.CloseAsync();
+            }
         }
     }
 
