@@ -11,8 +11,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace HelpDesk360.API.Data.Migrations
 {
     [DbContext(typeof(HelpDeskDbContext))]
-    [Migration("20250828172119_AddStoredProcedures")]
-    partial class AddStoredProcedures
+    [Migration("20250829114240_CreateStoredProcedureReports")]
+    partial class CreateStoredProcedureReports
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

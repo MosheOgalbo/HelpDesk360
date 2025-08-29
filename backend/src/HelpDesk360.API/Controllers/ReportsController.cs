@@ -47,8 +47,8 @@ namespace HelpDesk360.API.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error generating monthly report for {Year}-{Month}", year, month);
-                return StatusCode(500, "An error occurred while generating the report");
+                _logger.LogError(ex, "Error generating monthly report for {Year}-{Month}. Error: {Error}", year, month, ex.ToString());
+                return StatusCode(500, $"An error occurred while generating the report: {ex.Message}");
             }
         }
 

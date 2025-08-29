@@ -3,6 +3,7 @@ using HelpDesk360.API.Data;
 using HelpDesk360.API.DTOs;
 using HelpDesk360.API.Repositories;
 using System.Globalization;
+using System.Data;
 
 namespace HelpDesk360.API.Repositories
 {
@@ -17,21 +18,28 @@ namespace HelpDesk360.API.Repositories
 
         public async Task<MonthlyReportDto?> GetMonthlyReportAsync(int year, int month)
         {
-            var parameters = new[]
-            {
-                new MySqlConnector.MySqlParameter("p_Year", year),
-                new MySqlConnector.MySqlParameter("p_Month", month)
-            };
-
             var connection = _context.Database.GetDbConnection();
-            await connection.OpenAsync();
 
             try
             {
+                if (connection.State != ConnectionState.Open)
+                {
+                    await connection.OpenAsync();
+                }
+
                 using var command = connection.CreateCommand();
-                command.CommandText = "CALL sp_GetMonthlyRequestsReport(@p_Year, @p_Month)";
-                command.Parameters.Add(new MySqlConnector.MySqlParameter("@p_Year", year));
-                command.Parameters.Add(new MySqlConnector.MySqlParameter("@p_Month", month));
+                command.CommandType = CommandType.StoredProcedure;
+                command.CommandText = "sp_GetMonthlyRequestsReport";
+
+                var yearParam = command.CreateParameter();
+                yearParam.ParameterName = "p_Year";
+                yearParam.Value = year;
+                command.Parameters.Add(yearParam);
+
+                var monthParam = command.CreateParameter();
+                monthParam.ParameterName = "p_Month";
+                monthParam.Value = month;
+                command.Parameters.Add(monthParam);
 
                 using var reader = await command.ExecuteReaderAsync();
 
@@ -46,22 +54,22 @@ namespace HelpDesk360.API.Repositories
                         Year = year,
                         Month = month,
                         MonthName = CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(month),
-                        TotalRequests = reader.GetInt32(reader.GetOrdinal("TotalRequests")),
-                        OpenRequests = reader.GetInt32(reader.GetOrdinal("OpenRequests")),
-                        InProgressRequests = reader.GetInt32(reader.GetOrdinal("InProgressRequests")),
-                        ResolvedRequests = reader.GetInt32(reader.GetOrdinal("ResolvedRequests")),
-                        ClosedRequests = reader.GetInt32(reader.GetOrdinal("ClosedRequests")),
-                        AverageResolutionHours = reader.GetDouble(reader.GetOrdinal("AverageResolutionHours")),
-                        CriticalRequests = reader.GetInt32(reader.GetOrdinal("CriticalRequests")),
-                        HighRequests = reader.GetInt32(reader.GetOrdinal("HighRequests")),
-                        MediumRequests = reader.GetInt32(reader.GetOrdinal("MediumRequests")),
-                        LowRequests = reader.GetInt32(reader.GetOrdinal("LowRequests")),
-                        PreviousMonthTotal = reader.GetInt32(reader.GetOrdinal("PreviousMonthTotal")),
-                        TotalChangeFromPrevious = reader.GetInt32(reader.GetOrdinal("TotalChangeFromPrevious")),
-                        TotalChangePercentage = reader.GetDouble(reader.GetOrdinal("TotalChangePercentage")),
-                        PreviousYearSameMonthTotal = reader.GetInt32(reader.GetOrdinal("PreviousYearSameMonthTotal")),
-                        TotalChangeFromPreviousYear = reader.GetInt32(reader.GetOrdinal("TotalChangeFromPreviousYear")),
-                        TotalChangePercentageFromPreviousYear = reader.GetDouble(reader.GetOrdinal("TotalChangePercentageFromPreviousYear"))
+                        TotalRequests = reader.GetInt32("TotalRequests"),
+                        OpenRequests = reader.GetInt32("OpenRequests"),
+                        InProgressRequests = reader.GetInt32("InProgressRequests"),
+                        ResolvedRequests = reader.GetInt32("ResolvedRequests"),
+                        ClosedRequests = reader.GetInt32("ClosedRequests"),
+                        AverageResolutionHours = reader.GetDouble("AverageResolutionHours"),
+                        CriticalRequests = reader.GetInt32("CriticalRequests"),
+                        HighRequests = reader.GetInt32("HighRequests"),
+                        MediumRequests = reader.GetInt32("MediumRequests"),
+                        LowRequests = reader.GetInt32("LowRequests"),
+                        PreviousMonthTotal = reader.GetInt32("PreviousMonthTotal"),
+                        TotalChangeFromPrevious = reader.GetInt32("TotalChangeFromPrevious"),
+                        TotalChangePercentage = reader.GetDouble("TotalChangePercentage"),
+                        PreviousYearSameMonthTotal = reader.GetInt32("PreviousYearSameMonthTotal"),
+                        TotalChangeFromPreviousYear = reader.GetInt32("TotalChangeFromPreviousYear"),
+                        TotalChangePercentageFromPreviousYear = reader.GetDouble("TotalChangePercentageFromPreviousYear")
                     };
                 }
 
@@ -72,11 +80,11 @@ namespace HelpDesk360.API.Repositories
                     {
                         departmentStats.Add(new DepartmentStatDto
                         {
-                            DepartmentId = reader.GetInt32(reader.GetOrdinal("DepartmentId")),
-                            DepartmentName = reader.GetString(reader.GetOrdinal("DepartmentName")),
-                            RequestCount = reader.GetInt32(reader.GetOrdinal("DeptRequestCount")),
-                            AverageResolutionHours = reader.GetDouble(reader.GetOrdinal("DeptAverageResolutionHours")),
-                            Percentage = reader.GetDouble(reader.GetOrdinal("DeptPercentage"))
+                            DepartmentId = reader.GetInt32("DepartmentId"),
+                            DepartmentName = reader.GetString("DepartmentName"),
+                            RequestCount = reader.GetInt32("DeptRequestCount"),
+                            AverageResolutionHours = reader.GetDouble("DeptAverageResolutionHours"),
+                            Percentage = reader.GetDouble("DeptPercentage")
                         });
                     }
                 }
