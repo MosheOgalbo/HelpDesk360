@@ -58,23 +58,20 @@ services:
       retries: 3
       start_period: 60s
 
-  # HelpDesk360 Frontend (Angular) - READY FOR FUTURE
-  # Uncomment when frontend is added:
-  # helpdesk360-frontend:
-  #   build:
-  #     context: ./frontend
-  #     dockerfile: Dockerfile
-  #   container_name: helpdesk360-frontend
-  #   environment:
-  #     - NODE_ENV=production
-  #     - API_BASE_URL=http://helpdesk360-api:8080/api
-  #   ports:
-  #     - "4200:80"
-  #   depends_on:
-  #     - helpdesk360-api
-  #   networks:
-  #     - helpdesk360-network
-  #   restart: unless-stopped
+  frontend:
+   build:
+     context: ./helpdesk360-frontend
+     dockerfile: Dockerfile
+   container_name: helpdesk360-frontend
+   ports:
+      - "4200:80"
+   environment:
+      - API_URL=http://helpdesk360-api:8080
+   depends_on:
+      - helpdesk360-api
+   networks:
+      - helpdesk360-network
+
 
 volumes:
   mysql_data:
