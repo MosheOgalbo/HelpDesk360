@@ -66,9 +66,9 @@ services:
    ports:
       - "4200:80"
    environment:
-      - API_URL=http://helpdesk360-api:8080
-   depends_on:
-      - helpdesk360-api
+      - API_URL=http://localhost:8080/api
+  #  depends_on:
+  #     - helpdesk360-api
    networks:
       - helpdesk360-network
 

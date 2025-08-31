@@ -1,41 +1,24 @@
-# Stage 1: Build the Angular application
-FROM node:20-alpine AS build
+# שלב 1: Build Angular app
+FROM node:20 AS build
 
-# Set working directory
 WORKDIR /app
-
-# Copy package files
 COPY package*.json ./
-
-# Install dependencies
-RUN npm ci --quiet
-
-# Copy application source
-COPY . .
-
-# Build the application for production
-RUN npm run build -- --configuration=production
-
-# Stage 2: Serve the application with Nginx
-FROM nginx:alpine
+RUN npm ci
 
 COPY . .
-# Copy custom nginx configuration
-# COPY nginx.conf /etc/nginx/nginx.conf
+RUN npm run build --prod
 
-# # Copy built application from build stage
-# COPY --from=build /app/dist/helpdesk360-frontend/browser /usr/share/nginx/html
+# שלב 2: Serve with Nginx
+FROM nginx:1.25-alpine
 
-# # Copy env.js template and startup script
-# COPY env.js.template /usr/share/nginx/html/assets/env.js.template
-# COPY docker-entrypoint.sh /docker-entrypoint.sh
+# מחיקת קונפיג ברירת מחדל
+RUN rm -rf /etc/nginx/conf.d/default.conf
 
-# Make startup script executable
-RUN chmod +x /docker-entrypoint.sh
+# העתקת הקונפיג החדש
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Expose port 80
+# העתקת קבצי Angular build לתיקיית ה־html של Nginx
+COPY --from=build /app/dist/helpdesk360-frontend/browser /usr/share/nginx/html
+
 EXPOSE 80
-
-# Start nginx with environment variable substitution
-ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["nginx", "-g", "daemon off;"]

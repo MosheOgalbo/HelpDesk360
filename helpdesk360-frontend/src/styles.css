@@ -1,0 +1,41 @@
+/* Angular Material Theme – חייב להיות ראשון */
+@import '@angular/material/prebuilt-themes/indigo-pink.css';
+
+/* Tailwind Directives */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* RTL Support */
+[dir="rtl"] {
+  text-align: right;
+}
+
+/* Custom Material overwrites */
+.mat-mdc-card {
+  @apply shadow-lg border border-gray-100;
+}
+
+.mat-mdc-raised-button.mat-primary {
+  @apply bg-blue-600 hover:bg-blue-700;
+}
+
+.success-snackbar {
+  @apply bg-green-600;
+}
+
+/* Responsive table */
+.mat-mdc-table {
+  @apply text-sm;
+}
+
+@media (max-width: 768px) {
+  .mat-mdc-table {
+    font-size: 12px;
+  }
+
+  .mat-mdc-header-cell,
+  .mat-mdc-cell {
+    padding: 8px 4px;
+  }
+}
