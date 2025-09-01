@@ -3,19 +3,21 @@ import { Routes } from '@angular/router';
 export const routes: Routes = [
   {
     path: '',
-    redirectTo: '/requests',
+    redirectTo: '/contact',
     pathMatch: 'full'
   },
   {
-    path: 'requests',
-    loadChildren: () => import('./features/requests/requests.routes').then(m => m.requestsRoutes)
+    path: 'contact',
+    loadComponent: () => import('./features/requests/{components}/request-form.component')
+      .then(m => m.RequestFormComponent)
   },
   {
-    path: 'reports',
-    loadChildren: () => import('./features/reports/reports.routes').then(m => m.reportsRoutes)
+    path: 'report',
+    loadComponent: () => import('./features/reports/{components}/monthly-report.component')
+      .then(m => m.MonthlyReportComponent)
   },
   {
     path: '**',
-    redirectTo: '/requests'
+    redirectTo: '/contact'
   }
 ];

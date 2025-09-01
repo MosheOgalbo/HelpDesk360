@@ -35,7 +35,7 @@ services:
     build:
       context: ./backend
       dockerfile: docker/Dockerfile.api
-    container_name: helpdesk360-api
+    # container_name: helpdesk360-api
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:8080
@@ -62,11 +62,13 @@ services:
    build:
      context: ./helpdesk360-frontend
      dockerfile: Dockerfile
-   container_name: helpdesk360-frontend
+  #  container_name: helpdesk360-frontend
    ports:
       - "4200:80"
    environment:
-      - API_URL=http://localhost:8080/api
+      - API_URL=http://localhost:8080
+
+   restart: unless-stopped
   #  depends_on:
   #     - helpdesk360-api
    networks:

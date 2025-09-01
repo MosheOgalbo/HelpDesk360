@@ -1,24 +1,39 @@
-# שלב 1: Build Angular app
-FROM node:20 AS build
+# Build stage
+FROM node:20-alpine AS build
 
 WORKDIR /app
+
+# Copy package files
 COPY package*.json ./
+
+# Install dependencies
 RUN npm ci
 
+# Copy source code
 COPY . .
-RUN npm run build --prod
 
-# שלב 2: Serve with Nginx
-FROM nginx:1.25-alpine
+# Build for production
+RUN npm run build -- --configuration production
 
-# מחיקת קונפיג ברירת מחדל
-RUN rm -rf /etc/nginx/conf.d/default.conf
+# Production stage
+FROM nginx:alpine
 
-# העתקת הקונפיג החדש
+# Remove default nginx website
+RUN rm -rf /usr/share/nginx/html/*
+
+# Copy built app (שים לב לנתיב!)
+COPY --from=build /app/dist/helpdesk360-frontend/browser/ /usr/share/nginx/html/
+
+# Copy nginx config
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# העתקת קבצי Angular build לתיקיית ה־html של Nginx
-COPY --from=build /app/dist/helpdesk360-frontend/browser /usr/share/nginx/html
+# Optional: Copy env files
+COPY --from=build /app/src/environments/ /usr/share/nginx/html/environments/
 
 EXPOSE 80
+
+COPY --from=build /app/dist/helpdesk360-frontend/browser/ /usr/share/nginx/html/
+RUN chmod -R 755 /usr/share/nginx/html
+
+
 CMD ["nginx", "-g", "daemon off;"]

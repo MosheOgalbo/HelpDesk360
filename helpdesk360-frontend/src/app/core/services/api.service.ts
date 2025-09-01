@@ -1,30 +1,36 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { HelpDeskRequest, CreateRequestDto, MonthlyReport } from '../models/request.model';
+import { ContactRequest, ContactResponse } from '../models/contact.model';
+import { MonthlyReportData } from '../models/request.model';
 
 @Injectable({
   providedIn: 'root'
 })
 export class ApiService {
-  private readonly http = inject(HttpClient);
-  private readonly baseUrl = environment.apiUrl;
+  private readonly apiUrl = environment.apiUrl;
 
-  // Get all requests
-  getRequests(): Observable<HelpDeskRequest[]> {
-    return this.http.get<HelpDeskRequest[]>(`${this.baseUrl}/Requests`);
+  constructor(private http: HttpClient) {}
+
+  /**
+   * שליחת פנייה חדשה
+   * POST /api/Requests
+   */
+  submitContact(contact: ContactRequest): Observable<ContactResponse> {
+    return this.http.post<ContactResponse>(`${this.apiUrl}/api/Requests`, contact);
   }
 
-  // Create new request
-  createRequest(request: CreateRequestDto): Observable<HelpDeskRequest> {
-    return this.http.post<HelpDeskRequest>(`${this.baseUrl}/Requests`, request);
-  }
-
-  // Get monthly report
-  getMonthlyReport(year: number, month: number): Observable<MonthlyReport> {
-    return this.http.get<MonthlyReport>(`${this.baseUrl}/Reports/monthly`, {
-      params: { year: year.toString(), month: month.toString() }
+  /**
+   * קבלת דוח חודשי מ-Stored Procedure
+   * GET /api/Reports/monthly?year=2025&month=12
+   */
+  getMonthlyReport(year: number, month: number): Observable<MonthlyReportData> {
+    return this.http.get<MonthlyReportData>(`${this.apiUrl}/api/Reports/monthly`, {
+      params: {
+        year: year.toString(),
+        month: month.toString()
+      }
     });
   }
 }

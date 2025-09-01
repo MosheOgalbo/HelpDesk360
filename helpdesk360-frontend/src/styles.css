@@ -1,41 +1,25 @@
-/* Angular Material Theme – חייב להיות ראשון */
+@import "tailwindcss";
+
+@theme {
+  --color-primary-500: #2196f3;
+  --color-primary-600: #1976d2;
+  --color-primary-700: #1565c0;
+}
+
 @import '@angular/material/prebuilt-themes/indigo-pink.css';
 
-/* Tailwind Directives */
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-/* RTL Support */
-[dir="rtl"] {
-  text-align: right;
+* {
+  box-sizing: border-box;
 }
 
-/* Custom Material overwrites */
+body {
+  margin: 0;
+  font-family: 'Roboto', sans-serif;
+  background-color: #f5f5f5;
+  direction: rtl;
+}
+
 .mat-mdc-card {
-  @apply shadow-lg border border-gray-100;
-}
-
-.mat-mdc-raised-button.mat-primary {
-  @apply bg-blue-600 hover:bg-blue-700;
-}
-
-.success-snackbar {
-  @apply bg-green-600;
-}
-
-/* Responsive table */
-.mat-mdc-table {
-  @apply text-sm;
-}
-
-@media (max-width: 768px) {
-  .mat-mdc-table {
-    font-size: 12px;
-  }
-
-  .mat-mdc-header-cell,
-  .mat-mdc-cell {
-    padding: 8px 4px;
-  }
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important;
+  border-radius: 8px !important;
 }
