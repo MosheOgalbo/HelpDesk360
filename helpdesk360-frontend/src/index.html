@@ -1,15 +1,35 @@
 <!doctype html>
-<html lang="en">
+<html lang="he" dir="rtl">
 <head>
   <meta charset="utf-8">
-  <title>Helpdesk360Frontend</title>
+  <title>מערכת פניות לקוחות - HelpDesk360</title>
   <base href="/">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="מערכת מתקדמת לניהול פניות לקוחות">
+  <meta name="theme-color" content="#667eea">
+
+  <!-- Favicon -->
   <link rel="icon" type="image/x-icon" href="favicon.ico">
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+
+  <!-- Material Icons -->
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+  <!-- PWA Meta tags -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="HelpDesk360">
 </head>
 <body class="mat-typography">
   <app-root></app-root>
+
+  <!-- Loading fallback -->
+  <noscript>
+    <div style="text-align: center; padding: 50px; font-family: Arial;">
+      <h2>JavaScript נדרש</h2>
+      <p>אנא אפשר JavaScript בדפדפן כדי להשתמש באפליקציה</p>
+    </div>
+  </noscript>
 </body>
 </html>

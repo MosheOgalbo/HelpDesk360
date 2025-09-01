@@ -18,7 +18,7 @@ import { CommonModule } from '@angular/common';
     MatIconModule
   ],
   template: `
-    <!-- Header משופר -->
+    <!-- Header  -->
     <mat-toolbar color="primary" class="main-toolbar shadow-lg">
       <div class="toolbar-content max-w-7xl mx-auto w-full flex items-center justify-between px-4">
 
@@ -77,7 +77,7 @@ import { CommonModule } from '@angular/common';
     </footer>
   `,
   styles: [`
-    /* Toolbar עיצוב משופר */
+    /* Toolbar עיצוב  */
     .main-toolbar {
       position: sticky;
       top: 0;
