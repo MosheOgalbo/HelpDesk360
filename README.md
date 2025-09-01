@@ -75,7 +75,9 @@ incident-management-system/
 ├── backend/                        # .NET Core 8 API
 │   ├── Dockerfile
 │   ├── README.md                   # API-specific documentation
-│   ├── IncidentManagement.API/
+│   ├── src/
+│   |    ├── IncidentManagement.API/
+│   |    |-- HelpDesk360.Tests/
 │   └── IncidentManagement.sln
 ├── database/                       # MySQL configuration
 │   ├── init.sql                    # Database initialization
