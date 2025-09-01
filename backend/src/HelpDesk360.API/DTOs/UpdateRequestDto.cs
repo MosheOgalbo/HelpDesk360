@@ -18,7 +18,7 @@ namespace HelpDesk360.API.DTOs
 
         public int? DepartmentId { get; set; }
 
-        [Phone]
+        [RegularExpression(@"^[\d\-\+\(\)\s]+$", ErrorMessage = "Phone number format is invalid")]
         [StringLength(20)]
         public string? RequestorPhone { get; set; }
 

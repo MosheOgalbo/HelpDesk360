@@ -37,7 +37,7 @@ namespace HelpDesk360.API.Services
                 DepartmentId = createRequestDto.DepartmentId,
                 RequestorName = createRequestDto.RequestorName,
                 RequestorEmail = createRequestDto.RequestorEmail,
-                RequestorPhone = createRequestDto.RequestorPhone,
+                RequestorPhone = createRequestDto.RequestorPhone,  // ✅ זה בסדר
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -101,6 +101,7 @@ namespace HelpDesk360.API.Services
                 DepartmentName = request.Department?.Name ?? "",
                 RequestorName = request.RequestorName,
                 RequestorEmail = request.RequestorEmail,
+                RequestorPhone = request.RequestorPhone,
                 AssignedTo = request.AssignedTo,
                 CreatedAt = request.CreatedAt,
                 ResolvedAt = request.ResolvedAt,
