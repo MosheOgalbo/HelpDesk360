@@ -2,6 +2,7 @@
 
 [![.NET Core](https://img.shields.io/badge/.NET_Core-8.0-purple.svg)](https://dotnet.microsoft.com/)
 [![Angular](https://img.shields.io/badge/Angular-18-red.svg)](https://angular.io/)
+[![Nginx](https://img.shields.io/badge/Nginx-1.25-green.svg)](https://nginx.org/)
 [![MySQL](https://img.shields.io/badge/MySQL-8.0-blue.svg)](https://www.mysql.com/)
 [![Docker](https://img.shields.io/badge/Docker-Compose-blue.svg)](https://www.docker.com/)
 
@@ -13,8 +14,8 @@ A modern, containerized incident management system enabling organizations to eff
 
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌──────────────┐
-│   Angular SPA   │────│  .NET Core API   │────│    MySQL     │
-│   (Frontend)    │    │    (Backend)     │    │  (Database)  │
+│     Nginx       │────│  .NET Core API   │────│    MySQL     │
+│  (Angular SPA)  │    │    (Backend)     │    │  (Database)  │
 │   Port: 4200    │    │   Port: 5000     │    │  Port: 3306  │
 └─────────────────┘    └──────────────────┘    └──────────────┘
           │                       │                       │
@@ -29,6 +30,7 @@ A modern, containerized incident management system enabling organizations to eff
 ## Technology Stack
 
 - **Frontend**: Angular 18, Angular Material, TypeScript, RxJS
+- **Web Server**: Nginx (serving Angular build, reverse proxy)
 - **Backend**: .NET Core 8, Entity Framework Core, MySQL Connector
 - **Database**: MySQL 8.0 with optimized stored procedures
 - **Infrastructure**: Docker, Docker Compose, Multi-stage builds
@@ -65,7 +67,8 @@ incident-management-system/
 ├── docker-compose.prod.yml         # Production configuration
 ├── .env.example                    # Environment variables template
 ├── frontend/                       # Angular 18 application
-│   ├── Dockerfile
+│   ├── Dockerfile                  # Multi-stage: build + nginx
+│   ├── nginx.conf                  # Nginx configuration
 │   ├── README.md                   # Angular-specific documentation
 │   ├── src/
 │   └── package.json
@@ -92,7 +95,8 @@ incident-management-system/
 
 ### Technical Features
 - **Responsive Design**: Mobile-first approach with Material Design
-- **Containerized Deployment**: Docker-based infrastructure
+- **Containerized Deployment**: Docker-based infrastructure with Nginx
+- **Optimized Serving**: Nginx serving static Angular build with gzip compression
 - **Hot Reload Development**: Seamless development experience
 - **Database Optimization**: Indexed queries and stored procedures
 - **Error Handling**: Comprehensive error management and logging
@@ -123,7 +127,7 @@ ANGULAR_ENV=development
 
 | Service | Port | Description | Health Check |
 |---------|------|-------------|--------------|
-| frontend | 4200 | Angular SPA | http://localhost:4200 |
+| frontend (nginx) | 4200 | Nginx serving Angular build | http://localhost:4200 |
 | backend | 5000 | .NET Core API | http://localhost:5000/health |
 | database | 3306 | MySQL 8.0 | Internal connection test |
 
@@ -179,9 +183,10 @@ docker-compose -f docker-compose.prod.yml logs -f --tail=100
 
 ## Performance & Optimization
 
+- **Nginx Optimization**: Static file serving with gzip compression and caching
 - **Database Indexing**: Optimized queries for large datasets
 - **Caching Strategy**: Response caching for frequent queries
-- **Container Optimization**: Multi-stage Docker builds
+- **Container Optimization**: Multi-stage Docker builds (build + serve)
 - **Bundle Optimization**: Angular build optimization for production
 
 ## Contributing
