@@ -28,8 +28,8 @@ import { ContactRequest, Priority, Department } from '../../../core/models/conta
     MatSnackBarModule
   ],
   template: `
-    <div class="page-container">
-      <div class="max-w-4xl mx-auto">
+    <div class="page-container" dir="rtl">
+      <div class="form-wrapper">
 
         <!-- כותרת עמוד -->
         <div class="text-center mb-8">
@@ -43,7 +43,7 @@ import { ContactRequest, Priority, Department } from '../../../core/models/conta
 
         <!-- דיבאג אזור - מציג את הנתונים שנשלחים -->
         <div *ngIf="debugMode" class="mb-6">
-          <mat-card class="bg-blue-50 border-r-4 border-blue-500">
+          <mat-card class="bg-blue-50 border-l-4 border-blue-500">
             <mat-card-header>
               <mat-card-title class="text-blue-800">מצב דיבאג - נתונים לשליחה</mat-card-title>
             </mat-card-header>
@@ -62,7 +62,7 @@ import { ContactRequest, Priority, Department } from '../../../core/models/conta
           <mat-card-header>
             <div class="flex items-center w-full justify-between">
               <div class="flex items-center">
-                <mat-icon class="text-2xl ml-3">support_agent</mat-icon>
+                <mat-icon class="text-2xl mr-3">support_agent</mat-icon>
                 <mat-card-title>טופס פניה חדשה</mat-card-title>
               </div>
               <button mat-icon-button (click)="toggleDebugMode()"
@@ -80,7 +80,7 @@ import { ContactRequest, Priority, Department } from '../../../core/models/conta
               <div class="mb-6">
                 <mat-form-field appearance="outline" class="w-full">
                   <mat-label>כותרת הפנייה</mat-label>
-                  <mat-icon matPrefix class="text-gray-400 ml-2">title</mat-icon>
+                  <mat-icon matPrefix class="text-gray-400 mr-2">title</mat-icon>
                   <input matInput formControlName="title" placeholder="תאר את הנושא בקצרה">
                   <mat-error *ngIf="contactForm.get('title')?.hasError('required')">
                     שדה חובה
@@ -95,7 +95,7 @@ import { ContactRequest, Priority, Department } from '../../../core/models/conta
               <div class="mb-6">
                 <mat-form-field appearance="outline" class="w-full">
                   <mat-label>שם מלא</mat-label>
-                  <mat-icon matPrefix class="text-gray-400 ml-2">person</mat-icon>
+                  <mat-icon matPrefix class="text-gray-400 mr-2">person</mat-icon>
                   <input matInput formControlName="requestorName" placeholder="הכנס את שמך המלא">
                   <mat-error *ngIf="contactForm.get('requestorName')?.hasError('required')">
                     שדה חובה
@@ -106,11 +106,11 @@ import { ContactRequest, Priority, Department } from '../../../core/models/conta
                 </mat-form-field>
               </div>
 
-              <!-- שורת טלפון ואימייל -->
-              <div class="form-row flex flex-col md:flex-row gap-6 mb-6">
-                <mat-form-field appearance="outline" class="flex-1">
+              <!-- שדה טלפון -->
+              <div class="mb-6">
+                <mat-form-field appearance="outline" class="w-full">
                   <mat-label>מספר טלפון</mat-label>
-                  <mat-icon matPrefix class="text-gray-400 ml-2">phone</mat-icon>
+                  <mat-icon matPrefix class="text-gray-400 mr-2">phone</mat-icon>
                   <input matInput formControlName="requestorPhone" placeholder="0501234567" dir="ltr">
                   <mat-hint>ללא מקפים - לדוגמה: 0501234567</mat-hint>
                   <mat-error *ngIf="contactForm.get('requestorPhone')?.hasError('required')">
@@ -120,10 +120,13 @@ import { ContactRequest, Priority, Department } from '../../../core/models/conta
                     מספר טלפון לא תקין (לדוגמה: 0501234567)
                   </mat-error>
                 </mat-form-field>
+              </div>
 
-                <mat-form-field appearance="outline" class="flex-1">
+              <!-- שדה אימייל -->
+              <div class="mb-6">
+                <mat-form-field appearance="outline" class="w-full">
                   <mat-label>כתובת אימייל</mat-label>
-                  <mat-icon matPrefix class="text-gray-400 ml-2">email</mat-icon>
+                  <mat-icon matPrefix class="text-gray-400 mr-2">email</mat-icon>
                   <input matInput type="email" formControlName="requestorEmail"
                          placeholder="example@company.com" dir="ltr">
                   <mat-error *ngIf="contactForm.get('requestorEmail')?.hasError('required')">
@@ -135,15 +138,15 @@ import { ContactRequest, Priority, Department } from '../../../core/models/conta
                 </mat-form-field>
               </div>
 
-              <!-- שורת מחלקה ורמת חשיבות -->
-              <div class="form-row flex flex-col md:flex-row gap-6 mb-6">
-                <mat-form-field appearance="outline" class="flex-1">
+              <!-- שדה מחלקה -->
+              <div class="mb-6">
+                <mat-form-field appearance="outline" class="w-full">
                   <mat-label>מחלקה</mat-label>
-                  <mat-icon matPrefix class="text-gray-400 ml-2">business</mat-icon>
+                  <mat-icon matPrefix class="text-gray-400 mr-2">business</mat-icon>
                   <mat-select formControlName="departmentId" placeholder="בחר מחלקה">
                     <mat-option *ngFor="let dept of departments" [value]="dept.id">
                       <div class="flex items-center">
-                        <mat-icon class="text-sm ml-2">{{ dept.icon }}</mat-icon>
+                        <mat-icon class="text-sm mr-2">{{ dept.icon }}</mat-icon>
                         {{ dept.name }} (ID: {{ dept.id }})
                       </div>
                     </mat-option>
@@ -152,14 +155,17 @@ import { ContactRequest, Priority, Department } from '../../../core/models/conta
                     יש לבחור מחלקה
                   </mat-error>
                 </mat-form-field>
+              </div>
 
-                <mat-form-field appearance="outline" class="flex-1">
+              <!-- שדה רמת חשיבות -->
+              <div class="mb-6">
+                <mat-form-field appearance="outline" class="w-full">
                   <mat-label>רמת חשיבות</mat-label>
-                  <mat-icon matPrefix class="text-gray-400 ml-2">priority_high</mat-icon>
+                  <mat-icon matPrefix class="text-gray-400 mr-2">priority_high</mat-icon>
                   <mat-select formControlName="priority" placeholder="בחר רמת חשיבות">
                     <mat-option *ngFor="let priority of priorityOptions" [value]="priority.value">
                       <div class="flex items-center">
-                        <mat-icon class="text-sm ml-2" [class]="priority.colorClass">{{ priority.icon }}</mat-icon>
+                        <mat-icon class="text-sm mr-2" [class]="priority.colorClass">{{ priority.icon }}</mat-icon>
                         {{ priority.label }} ({{ priority.value }})
                       </div>
                     </mat-option>
@@ -174,7 +180,7 @@ import { ContactRequest, Priority, Department } from '../../../core/models/conta
               <div class="mb-8">
                 <mat-form-field appearance="outline" class="w-full">
                   <mat-label>תיאור הפנייה</mat-label>
-                  <mat-icon matPrefix class="text-gray-400 ml-2 self-start mt-4">description</mat-icon>
+                  <mat-icon matPrefix class="text-gray-400 mr-2 self-start mt-4">description</mat-icon>
                   <textarea
                     matInput
                     formControlName="description"
@@ -204,7 +210,7 @@ import { ContactRequest, Priority, Department } from '../../../core/models/conta
                 (click)="resetForm()"
                 [disabled]="isLoading"
                 class="text-gray-600">
-                <mat-icon class="ml-2">refresh</mat-icon>
+                <mat-icon class="mr-2">refresh</mat-icon>
                 איפוס טופס
               </button>
 
@@ -214,7 +220,7 @@ import { ContactRequest, Priority, Department } from '../../../core/models/conta
                 (click)="testConnection()"
                 [disabled]="isLoading"
                 class="text-blue-600">
-                <mat-icon class="ml-2">wifi</mat-icon>
+                <mat-icon class="mr-2">wifi</mat-icon>
                 בדיקת חיבור
               </button>
             </div>
@@ -225,8 +231,8 @@ import { ContactRequest, Priority, Department } from '../../../core/models/conta
               (click)="onSubmit()"
               [disabled]="contactForm.invalid || isLoading"
               class="min-w-40 gradient-bg">
-              <mat-spinner diameter="20" *ngIf="isLoading" class="inline ml-2"></mat-spinner>
-              <mat-icon *ngIf="!isLoading" class="ml-2">send</mat-icon>
+              <mat-spinner diameter="20" *ngIf="isLoading" class="inline mr-2"></mat-spinner>
+              <mat-icon *ngIf="!isLoading" class="mr-2">send</mat-icon>
               {{ isLoading ? 'שולח...' : 'שלח פנייה' }}
             </button>
           </mat-card-actions>
@@ -234,9 +240,9 @@ import { ContactRequest, Priority, Department } from '../../../core/models/conta
 
         <!-- הודעת הצלחה -->
         <div *ngIf="showSuccessMessage" class="mt-6 slide-in">
-          <mat-card class="bg-green-50 border-r-4 border-green-500">
+          <mat-card class="bg-green-50 border-l-4 border-green-500">
             <mat-card-content class="flex items-center p-4">
-              <mat-icon class="text-green-600 ml-3">check_circle</mat-icon>
+              <mat-icon class="text-green-600 mr-3">check_circle</mat-icon>
               <div>
                 <h3 class="text-lg font-semibold text-green-800 mb-1">הפנייה נשלחה בהצלחה!</h3>
                 <p class="text-green-700">מספר פנייה: {{ successRequestId }} | נחזור אליך תוך 24 שעות</p>
@@ -247,10 +253,10 @@ import { ContactRequest, Priority, Department } from '../../../core/models/conta
 
         <!-- הודעת שגיאה מפורטת -->
         <div *ngIf="lastError" class="mt-6">
-          <mat-card class="bg-red-50 border-r-4 border-red-500">
+          <mat-card class="bg-red-50 border-l-4 border-red-500">
             <mat-card-header>
               <mat-card-title class="text-red-800 flex items-center">
-                <mat-icon class="ml-2">error</mat-icon>
+                <mat-icon class="mr-2">error</mat-icon>
                 שגיאה בשליחת הפנייה
               </mat-card-title>
             </mat-card-header>
@@ -277,7 +283,20 @@ import { ContactRequest, Priority, Department } from '../../../core/models/conta
     </div>
   `,
   styles: [`
-    .text-gradient {
+    .page-container {
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1rem;
+    }
+
+    .form-wrapper {
+      width: 100%;
+      max-width: 600px;
+      margin: 0 auto;
+    }
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
@@ -285,7 +304,7 @@ import { ContactRequest, Priority, Department } from '../../../core/models/conta
     }
 
     .mat-mdc-form-field-prefix mat-icon {
-      margin-left: 8px;
+      margin-right: 8px;
     }
 
     .gradient-bg {
@@ -317,7 +336,34 @@ import { ContactRequest, Priority, Department } from '../../../core/models/conta
       word-wrap: break-word;
     }
 
+    /* RTL Support */
+    [dir="rtl"] .flex {
+      flex-direction: row-reverse;
+    }
+
+    [dir="rtl"] .justify-between {
+      flex-direction: row-reverse;
+    }
+
     /* Mobile improvements */
+    @media (max-width: 768px) {
+      .page-container {
+        padding: 1rem;
+      }
+
+      .text-3xl {
+        font-size: 1.875rem;
+      }
+
+      .text-4xl {
+        font-size: 2.25rem;
+      }
+
+      /* שיפור הצגה עבור עברית */
+      [dir="rtl"] {
+        font-family: 'Segoe UI', Tahoma, Arial, Helvetica, sans-serif;
+      }
+    }
     @media (max-width: 768px) {
       .page-container {
         padding: 1rem;
@@ -348,6 +394,7 @@ export class RequestFormComponent implements OnInit {
     { id: 2, name: 'משאבי אנוש', icon: 'people' },
     { id: 3, name: 'כספים', icon: 'account_balance' },
     { id: 4, name: 'שיווק', icon: 'campaign' },
+    { id: 5, name: 'תפעול', icon: 'settings' }
   ];
 
   // אפשרויות רמת חשיבות
