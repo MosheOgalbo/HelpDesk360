@@ -348,7 +348,6 @@ export class RequestFormComponent implements OnInit {
     { id: 2, name: 'משאבי אנוש', icon: 'people' },
     { id: 3, name: 'כספים', icon: 'account_balance' },
     { id: 4, name: 'שיווק', icon: 'campaign' },
-    { id: 5, name: 'תפעול', icon: 'settings' }
   ];
 
   // אפשרויות רמת חשיבות
@@ -418,35 +417,53 @@ export class RequestFormComponent implements OnInit {
   }
 
   /**
-   * בדיקת חיבור לשרת
+   * בדיקת חיבור לשרת באמצעות API Service
    */
   testConnection(): void {
     this.isLoading = true;
 
-    // ניסיון קריאה לשרת (GET בדרך כלל יותר פשוט)
-    fetch('http://localhost:8080/api/Requests')
-      .then(response => {
+    console.log('🔌 בודק חיבור לשרת באמצעות getAllRequests...');
+
+    this.apiService.getAllRequests().subscribe({
+      next: (response) => {
         this.isLoading = false;
-        if (response.ok) {
-          this.snackBar.open('✅ החיבור לשרת תקין!', 'סגור', {
-            duration: 3000,
+        console.log('✅ החיבור לשרת תקין! קיבלנו', response.length, 'פניות');
+
+        this.snackBar.open(
+          `✅ החיבור לשרת תקין! נמצאו ${response.length} פניות במערכת`,
+          'סגור',
+          {
+            duration: 4000,
             panelClass: ['success-snackbar']
-          });
-        } else {
-          this.snackBar.open(`❌ שגיאת שרת: ${response.status}`, 'סגור', {
-            duration: 5000,
-            panelClass: ['error-snackbar']
-          });
-        }
-      })
-      .catch(error => {
+          }
+        );
+      },
+      error: (error) => {
         this.isLoading = false;
-        console.error('שגיאת חיבור:', error);
-        this.snackBar.open('❌ אין חיבור לשרת', 'סגור', {
-          duration: 5000,
-          panelClass: ['error-snackbar']
-        });
-      });
+        console.error('❌ שגיאת חיבור:', error);
+
+        let errorMessage = 'שגיאה לא ידועה';
+
+        if (error.status === 0) {
+          errorMessage = 'אין חיבור לשרת - בדוק שהשרת פועל';
+        } else if (error.status === 404) {
+          errorMessage = 'נתיב API לא נמצא - בדוק את כתובת השרת';
+        } else if (error.status === 500) {
+          errorMessage = 'שגיאת שרת פנימית';
+        } else {
+          errorMessage = `שגיאת שרת: ${error.status} - ${error.statusText}`;
+        }
+
+        this.snackBar.open(
+          `❌ ${errorMessage}`,
+          'סגור',
+          {
+            duration: 6000,
+            panelClass: ['error-snackbar']
+          }
+        );
+      }
+    });
   }
 
   /**
