@@ -33,11 +33,11 @@ namespace HelpDesk360.API.Services
                 Title = createRequestDto.Title,
                 Description = createRequestDto.Description,
                 Priority = createRequestDto.Priority,
-                Status = 1, // Open
+                Status = 1,
                 DepartmentId = createRequestDto.DepartmentId,
                 RequestorName = createRequestDto.RequestorName,
                 RequestorEmail = createRequestDto.RequestorEmail,
-                RequestorPhone = createRequestDto.RequestorPhone,  // ✅ זה בסדר
+                RequestorPhone = createRequestDto.RequestorPhone,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };

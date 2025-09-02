@@ -8,8 +8,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatTableModule } from '@angular/material/table';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatIconModule } from '@angular/material/icon';
-import { ApiService } from '../../../core/services/api.service';
-import { MonthlyReportData } from '../../../core/models/request.model';
+import { ApiService } from '../../core/services/api.service';
+import { MonthlyReportData } from '../../core/models/request.model';
 
 @Component({
   selector: 'app-monthly-report',
