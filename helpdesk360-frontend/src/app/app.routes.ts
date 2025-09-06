@@ -8,13 +8,13 @@ export const routes: Routes = [
   },
   {
     path: 'contact',
-    loadComponent: () => import('./pages/requests/{components}/equest-form/request-form.component')
+    loadComponent: () => import('./features/requests/components/equest-form/request-form.component')
       .then(m => m.RequestFormComponent),
 
   },
   {
     path: 'report',
-    loadComponent: () => import('./pages/reports/{components}/monthly-report/monthly-report.component')
+    loadComponent: () => import('./features/reports/components/monthly-report/monthly-report.component')
       .then(m => m.MonthlyReportComponent),
 
   },
