@@ -11,49 +11,60 @@ namespace HelpDesk360.API.Repositories
     {
         private readonly HelpDeskDbContext _context;
 
+        // הזרקת DbContext דרך ה-Constructor
         public ReportRepository(HelpDeskDbContext context)
         {
             _context = context;
         }
 
+        // פונקציה שמחזירה דוח חודשי (או null אם לא נמצאו נתונים)
         public async Task<MonthlyReportDto?> GetMonthlyReportAsync(int year, int month)
         {
+            // קבלת החיבור למסד הנתונים מתוך ה-DbContext
             var connection = _context.Database.GetDbConnection();
 
             try
             {
+                // פתיחת החיבור אם הוא עדיין סגור
                 if (connection.State != ConnectionState.Open)
                 {
                     await connection.OpenAsync();
                 }
 
+                // יצירת פקודה להרצת Stored Procedure
                 using var command = connection.CreateCommand();
                 command.CommandType = CommandType.StoredProcedure;
-                command.CommandText = "sp_GetMonthlyRequestsReport";
+                command.CommandText = "sp_GetMonthlyRequestsReport"; // שם הפרוצדורה במסד הנתונים
 
+                // יצירת פרמטר לשנה
                 var yearParam = command.CreateParameter();
-                yearParam.ParameterName = "p_Year";
-                yearParam.Value = year;
+                yearParam.ParameterName = "p_Year"; // שם הפרמטר בפרוצדורה
+                yearParam.Value = year;             // הערך שנשלח
                 command.Parameters.Add(yearParam);
 
+                // יצירת פרמטר לחודש
                 var monthParam = command.CreateParameter();
                 monthParam.ParameterName = "p_Month";
                 monthParam.Value = month;
                 command.Parameters.Add(monthParam);
 
+                // הרצת הפרוצדורה וקבלת תוצאות
                 using var reader = await command.ExecuteReaderAsync();
 
-                MonthlyReportDto? report = null;
-                var departmentStats = new List<DepartmentStatDto>();
+                MonthlyReportDto? report = null; // הדוח הראשי
+                var departmentStats = new List<DepartmentStatDto>(); // רשימת סטטיסטיקות למחלקות
 
-                // First result set - main report data
+                // קריאת ה-ResultSet הראשון – נתוני סיכום
                 if (await reader.ReadAsync())
                 {
                     report = new MonthlyReportDto
                     {
                         Year = year,
                         Month = month,
+                        // המרת מספר החודש לשם (למשל: January, February וכו')
                         MonthName = CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(month),
+
+                        // מילוי הערכים מה-ResultSet
                         TotalRequests = reader.GetInt32("TotalRequests"),
                         OpenRequests = reader.GetInt32("OpenRequests"),
                         InProgressRequests = reader.GetInt32("InProgressRequests"),
@@ -73,7 +84,7 @@ namespace HelpDesk360.API.Repositories
                     };
                 }
 
-                // Second result set - department statistics
+                // קריאת ה-ResultSet השני – פילוח לפי מחלקות
                 if (await reader.NextResultAsync())
                 {
                     while (await reader.ReadAsync())
@@ -89,6 +100,7 @@ namespace HelpDesk360.API.Repositories
                     }
                 }
 
+                // חיבור הנתונים הראשיים עם הסטטיסטיקה למחלקות
                 if (report != null)
                 {
                     report.DepartmentStats = departmentStats;
@@ -98,11 +110,13 @@ namespace HelpDesk360.API.Repositories
             }
             finally
             {
+                // סגירת החיבור תמיד (גם אם הייתה שגיאה)
                 await connection.CloseAsync();
             }
         }
     }
 
+    // מחלקת עזר (לא בשימוש ישיר בקוד אבל מייצגת את הנתונים הגולמיים מהפרוצדורה)
     public class MonthlyReportResult
     {
         public int TotalRequests { get; set; }
@@ -122,7 +136,7 @@ namespace HelpDesk360.API.Repositories
         public int TotalChangeFromPreviousYear { get; set; }
         public double TotalChangePercentageFromPreviousYear { get; set; }
 
-        // Department specific fields
+        // שדות ייחודיים לסטטיסטיקה לפי מחלקות
         public int? DepartmentId { get; set; }
         public string? DepartmentName { get; set; }
         public int? DeptRequestCount { get; set; }

@@ -9,23 +9,27 @@ using HelpDesk360.API.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configure Serilog
+// ----------------------------
+// Configure Serilog Logging
+// ----------------------------
 builder.Host.UseSerilog((context, configuration) =>
 {
     configuration
-        .ReadFrom.Configuration(context.Configuration)
-        .WriteTo.Console()
-        .WriteTo.File("logs/helpdesk360-.txt", rollingInterval: RollingInterval.Day);
+        .ReadFrom.Configuration(context.Configuration) // קריאת הגדרות מה-appsettings
+        .WriteTo.Console()                               // לוגים בקונסול
+        .WriteTo.File("logs/helpdesk360-.txt", rollingInterval: RollingInterval.Day); // לוגים לקובץ יומי
 });
 
-// Add services to the container
-builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
+// ----------------------------
+// Add Services to DI Container
+// ----------------------------
+builder.Services.AddControllers(); // מוסיף תמיכה ב-Controllers
+builder.Services.AddEndpointsApiExplorer(); // מייצר מטא-נתונים עבור Swagger
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new() { Title = "HelpDesk360 API", Version = "v1" });
 
-    // Include XML comments
+    // Include XML comments (ל־Swagger תיעוד)
     var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
     var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
     if (File.Exists(xmlPath))
@@ -34,30 +38,36 @@ builder.Services.AddSwaggerGen(c =>
     }
 });
 
-// Database Configuration
+// ----------------------------
+// Configure Database (MySQL)
+// ----------------------------
 builder.Services.AddDbContext<HelpDeskDbContext>(options =>
     options.UseMySql(builder.Configuration.GetConnectionString("DefaultConnection"),
         ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("DefaultConnection"))));
 
-// Repository and Service Registration
+// ----------------------------
+// Register Repositories & Services
+// ----------------------------
 builder.Services.AddScoped<IRequestRepository, RequestRepository>();
 builder.Services.AddScoped<IReportRepository, ReportRepository>();
 builder.Services.AddScoped<IRequestService, RequestService>();
 builder.Services.AddScoped<IReportService, ReportService>();
 
-//# CORS Configuration - Ready for Frontend
+// ----------------------------
+// CORS Configuration
+// ----------------------------
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
         if (builder.Environment.IsDevelopment())
         {
-            // Development - Allow Angular dev server
+            // פיתוח - מאפשר localhost לפורטים שונים
             policy.WithOrigins(
-                "http://localhost:4200",  // Angular dev server default
-                "http://localhost:3000",  // Alternative dev port
-                "https://localhost:4200", // HTTPS dev
-                "https://localhost:3000"  // HTTPS alternative
+                "http://localhost:4200",
+                "http://localhost:3000",
+                "https://localhost:4200",
+                "https://localhost:3000"
             )
             .AllowAnyHeader()
             .AllowAnyMethod()
@@ -65,55 +75,58 @@ builder.Services.AddCors(options =>
         }
         else
         {
-            // Production - Add your production domains
+            // Production - הוספת דומיינים אמיתיים
             policy.WithOrigins(
                 "https://yourdomain.com",
                 "https://www.yourdomain.com",
-                "http://localhost:4200"  // Keep for local frontend testing
+                "http://localhost:4200"
             )
             .AllowAnyHeader()
             .AllowAnyMethod()
-            .WithExposedHeaders("X-Total-Count"); // For pagination headers
+            .WithExposedHeaders("X-Total-Count"); // שימוש בכותרות pagination
         }
     });
 });
 
+// ----------------------------
 // Rate Limiting
+// ----------------------------
 builder.Services.AddRateLimiter(options =>
 {
     options.AddFixedWindowLimiter(policyName: "fixed", options =>
     {
-        options.PermitLimit = 100;
-        options.Window = TimeSpan.FromMinutes(1);
+        options.PermitLimit = 100;                    // מספר מקסימום בקשות
+        options.Window = TimeSpan.FromMinutes(1);    // חלון זמן 1 דקה
         options.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-        options.QueueLimit = 10;
+        options.QueueLimit = 10;                      // מספר בקשות בתור
     });
 });
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline
-// Enable Swagger in ALL environments (including Production)
-app.UseSwagger();
+// ----------------------------
+// Configure Middleware Pipeline
+// ----------------------------
+app.UseSwagger(); // מאפשר Swagger UI
 app.UseSwaggerUI(c =>
 {
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "HelpDesk360 API v1");
-    c.RoutePrefix = "swagger";
+    c.RoutePrefix = "swagger"; // ניתן לגשת ל- /swagger
 });
 
-// Add a root redirect to Swagger
+// Redirect root "/" ל-Swagger
 app.MapGet("/", () => Results.Redirect("/swagger"));
 
-// Remove HTTPS redirection for Docker deployment
-// app.UseHttpsRedirection();
+// Cors & Rate Limiting middleware
 app.UseCors("AllowFrontend");
 app.UseRateLimiter();
 
 app.UseAuthorization();
-
 app.MapControllers().RequireRateLimiting("fixed");
 
-// Database Migration and Seeding
+// ----------------------------
+// Database Migration & Seeding
+// ----------------------------
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<HelpDeskDbContext>();
@@ -123,43 +136,42 @@ using (var scope = app.Services.CreateScope())
         context.Database.Migrate();
         app.Logger.LogInformation("Database migration completed successfully");
 
-        // Create stored procedures after migration
+        // יצירת Stored Procedure לדוח חודשי
         try
         {
             context.Database.ExecuteSqlRaw("DROP PROCEDURE IF EXISTS sp_GetMonthlyRequestsReport");
             context.Database.ExecuteSqlRaw(@"
-        CREATE PROCEDURE sp_GetMonthlyRequestsReport(
-            IN p_Year INT,
-            IN p_Month INT
-        )
-        BEGIN
-            DECLARE v_StartDate DATETIME;
-            DECLARE v_EndDate DATETIME;
+                CREATE PROCEDURE sp_GetMonthlyRequestsReport(
+                    IN p_Year INT,
+                    IN p_Month INT
+                )
+                BEGIN
+                    DECLARE v_StartDate DATETIME;
+                    DECLARE v_EndDate DATETIME;
 
-            SET v_StartDate = STR_TO_DATE(CONCAT(p_Year, '-', LPAD(p_Month, 2, '0'), '-01'), '%Y-%m-%d');
-            SET v_EndDate = DATE_ADD(v_StartDate, INTERVAL 1 MONTH);
+                    SET v_StartDate = STR_TO_DATE(CONCAT(p_Year, '-', LPAD(p_Month, 2, '0'), '-01'), '%Y-%m-%d');
+                    SET v_EndDate = DATE_ADD(v_StartDate, INTERVAL 1 MONTH);
 
-            SELECT
-                COUNT(*) as TotalRequests,
-                COUNT(CASE WHEN Status = 1 THEN 1 END) as OpenRequests,
-                COUNT(CASE WHEN Status = 2 THEN 1 END) as InProgressRequests,
-                COUNT(CASE WHEN Status = 3 THEN 1 END) as ResolvedRequests,
-                COUNT(CASE WHEN Status = 4 THEN 1 END) as ClosedRequests,
-                COALESCE(AVG(CASE WHEN ResolvedAt IS NOT NULL THEN TIMESTAMPDIFF(HOUR, CreatedAt, ResolvedAt) END), 0) as AverageResolutionHours,
-                COUNT(CASE WHEN Priority = 4 THEN 1 END) as CriticalRequests,
-                COUNT(CASE WHEN Priority = 3 THEN 1 END) as HighRequests,
-                COUNT(CASE WHEN Priority = 2 THEN 1 END) as MediumRequests,
-                COUNT(CASE WHEN Priority = 1 THEN 1 END) as LowRequests,
-                0 as PreviousMonthTotal,
-                0 as TotalChangeFromPrevious,
-                0.0 as TotalChangePercentage,
-                0 as PreviousYearSameMonthTotal,
-                0 as TotalChangeFromPreviousYear,
-                0.0 as TotalChangePercentageFromPreviousYear
-            FROM Requests
-            WHERE CreatedAt >= v_StartDate AND CreatedAt < v_EndDate;
-        END");
-
+                    SELECT
+                        COUNT(*) as TotalRequests,
+                        COUNT(CASE WHEN Status = 1 THEN 1 END) as OpenRequests,
+                        COUNT(CASE WHEN Status = 2 THEN 1 END) as InProgressRequests,
+                        COUNT(CASE WHEN Status = 3 THEN 1 END) as ResolvedRequests,
+                        COUNT(CASE WHEN Status = 4 THEN 1 END) as ClosedRequests,
+                        COALESCE(AVG(CASE WHEN ResolvedAt IS NOT NULL THEN TIMESTAMPDIFF(HOUR, CreatedAt, ResolvedAt) END), 0) as AverageResolutionHours,
+                        COUNT(CASE WHEN Priority = 4 THEN 1 END) as CriticalRequests,
+                        COUNT(CASE WHEN Priority = 3 THEN 1 END) as HighRequests,
+                        COUNT(CASE WHEN Priority = 2 THEN 1 END) as MediumRequests,
+                        COUNT(CASE WHEN Priority = 1 THEN 1 END) as LowRequests,
+                        0 as PreviousMonthTotal,
+                        0 as TotalChangeFromPrevious,
+                        0.0 as TotalChangePercentage,
+                        0 as PreviousYearSameMonthTotal,
+                        0 as TotalChangeFromPreviousYear,
+                        0.0 as TotalChangePercentageFromPreviousYear
+                    FROM Requests
+                    WHERE CreatedAt >= v_StartDate AND CreatedAt < v_EndDate;
+                END");
             app.Logger.LogInformation("Stored procedure created successfully");
         }
         catch (Exception ex)
@@ -167,7 +179,7 @@ using (var scope = app.Services.CreateScope())
             app.Logger.LogError(ex, "Failed to create stored procedure: {ErrorMessage}", ex.Message);
         }
 
-        // Seed data if tables are empty
+        // Seed Departments אם אין נתונים
         if (!context.RequestDepartments.Any())
         {
             var departments = new List<RequestDepartment>
@@ -183,10 +195,9 @@ using (var scope = app.Services.CreateScope())
             app.Logger.LogInformation("Database seeded with default departments");
         }
 
-        // Seed sample requests if table is empty
+        // Seed Sample Requests אם אין נתונים
         if (!context.Requests.Any())
         {
-            // Make sure departments exist first
             var itDepartment = context.RequestDepartments.FirstOrDefault(d => d.Name == "IT Support");
             var hrDepartment = context.RequestDepartments.FirstOrDefault(d => d.Name == "HR");
             var financeDepartment = context.RequestDepartments.FirstOrDefault(d => d.Name == "Finance");
@@ -251,10 +262,11 @@ using (var scope = app.Services.CreateScope())
     catch (Exception ex)
     {
         app.Logger.LogError(ex, "An error occurred while migrating or seeding the database. Details: {ErrorMessage}", ex.Message);
-
-        // Don't crash the application - just log and continue
-        // throw; // Remove this to prevent crash
+        // המשך ריצה גם אם קרתה שגיאה
     }
 }
 
+// ----------------------------
+// Run the app
+// ----------------------------
 app.Run();

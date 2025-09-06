@@ -46,7 +46,14 @@ namespace HelpDesk360.API.Models
 
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
-        [ForeignKey("DepartmentId")]
+        [ForeignKey("DepartmentId")]// יותר מפורש
+        // [ForeignKey(nameof(DepartmentId))]
         public RequestDepartment Department { get; set; } = null!;
     }
 }
+
+/*
+ניתן להוסיף enm :
+public enum Priority { Low = 1, Medium = 2, High = 3, Critical = 4 }
+
+*/

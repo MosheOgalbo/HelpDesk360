@@ -19,7 +19,7 @@ const angularApp = new AngularNodeAppEngine();
  * Uncomment and define endpoints as necessary.
  *
  * Example:
- * ```ts
+ ts
  * app.get('/api/**', (req, res) => {
  *   // Handle API request
  * });
@@ -29,6 +29,8 @@ const angularApp = new AngularNodeAppEngine();
 /**
  * Serve static files from /browser
  */
+
+
 app.use(
   express.static(browserDistFolder, {
     maxAge: '1y',
