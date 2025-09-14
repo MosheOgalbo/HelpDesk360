@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
@@ -9,6 +9,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { Subject, takeUntil } from 'rxjs';
 import { ApiService } from '../../../../core/services/api.service';
 import { ContactRequest, Priority, Department } from '../../../../core/models/contact.model';
 
@@ -30,7 +31,10 @@ import { ContactRequest, Priority, Department } from '../../../../core/models/co
   templateUrl: './request-form.component.html',
   styleUrl: './request-form.component.css',
 })
-export class RequestFormComponent implements OnInit {
+export class RequestFormComponent implements OnInit, OnDestroy {
+  // Subject לניהול subscriptions
+  private destroy$ = new Subject<void>();
+
   contactForm!: FormGroup;
   isLoading = false;
   showSuccessMessage = false;
@@ -38,6 +42,10 @@ export class RequestFormComponent implements OnInit {
   debugMode = false;
   debugData: any = {};
   lastError: any = null;
+
+  // משתנים לשמירת IDs של timeouts
+  private resetTimeoutId?: number;
+  private successTimeoutId?: number;
 
   // רשימת מחלקות עם מזהים מעודכנים
   departments: Department[] = [
@@ -60,7 +68,7 @@ export class RequestFormComponent implements OnInit {
     private fb: FormBuilder,
     private apiService: ApiService,
     private snackBar: MatSnackBar
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     this.initForm();
@@ -100,10 +108,12 @@ export class RequestFormComponent implements OnInit {
       ]]
     });
 
-    // עדכון דיבאג בזמן אמת
-    this.contactForm.valueChanges.subscribe(value => {
-      this.debugData = { ...value };
-    });
+    // עדכון דיבאג בזמן אמת - עם takeUntil
+    this.contactForm.valueChanges
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(value => {
+        this.debugData = { ...value };
+      });
   }
 
   /**
@@ -122,46 +132,55 @@ export class RequestFormComponent implements OnInit {
 
     console.log('🔌 בודק חיבור לשרת באמצעות getAllRequests...');
 
-    this.apiService.getAllRequests().subscribe({
-      next: (response) => {
-        this.isLoading = false;
-        console.log('✅ החיבור לשרת תקין! קיבלנו', response.length, 'פניות');
+    this.apiService.getAllRequests()
+      .pipe(takeUntil(this.destroy$)) // הוספת takeUntil
+      .subscribe({
+        next: (response) => {
+          this.isLoading = false;
+          console.log('✅ החיבור לשרת תקין! קיבלנו', response.length, 'פניות');
 
-        this.snackBar.open(
-          `✅ החיבור לשרת תקין! נמצאו ${response.length} פניות במערכת`,
-          'סגור',
-          {
-            duration: 4000,
-            panelClass: ['success-snackbar']
-          }
-        );
-      },
-      error: (error) => {
-        this.isLoading = false;
-        console.error('❌ שגיאת חיבור:', error);
-
-        let errorMessage = 'שגיאה לא ידועה';
-
-        if (error.status === 0) {
-          errorMessage = 'אין חיבור לשרת - בדוק שהשרת פועל';
-        } else if (error.status === 404) {
-          errorMessage = 'נתיב API לא נמצא - בדוק את כתובת השרת';
-        } else if (error.status === 500) {
-          errorMessage = 'שגיאת שרת פנימית';
-        } else {
-          errorMessage = `שגיאת שרת: ${error.status} - ${error.statusText}`;
+          this.snackBar.open(
+            `✅ החיבור לשרת תקין! נמצאו ${response.length} פניות במערכת`,
+            'סגור',
+            {
+              duration: 4000,
+              panelClass: ['success-snackbar']
+            }
+          );
+        },
+        error: (error) => {
+          this.isLoading = false;
+          this.handleConnectionError(error);
         }
+      });
+  }
 
-        this.snackBar.open(
-          `❌ ${errorMessage}`,
-          'סגור',
-          {
-            duration: 6000,
-            panelClass: ['error-snackbar']
-          }
-        );
+  /**
+   * טיפול בשגיאות חיבור
+   */
+  private handleConnectionError(error: any): void {
+    console.error('❌ שגיאת חיבור:', error);
+
+    let errorMessage = 'שגיאה לא ידועה';
+
+    if (error.status === 0) {
+      errorMessage = 'אין חיבור לשרת - בדוק שהשרת פועל';
+    } else if (error.status === 404) {
+      errorMessage = 'נתיב API לא נמצא - בדוק את כתובת השרת';
+    } else if (error.status === 500) {
+      errorMessage = 'שגיאת שרת פנימית';
+    } else {
+      errorMessage = `שגיאת שרת: ${error.status} - ${error.statusText}`;
+    }
+
+    this.snackBar.open(
+      `❌ ${errorMessage}`,
+      'סגור',
+      {
+        duration: 6000,
+        panelClass: ['error-snackbar']
       }
-    });
+    );
   }
 
   /**
@@ -185,94 +204,101 @@ export class RequestFormComponent implements OnInit {
 
       // ווידוא שהנתונים תקינים
       console.log('🔍 נתונים לשליחה:', formData);
-      console.log('🔍 טיפוסי נתונים:', {
-        title: typeof formData.title,
-        description: typeof formData.description,
-        priority: typeof formData.priority,
-        departmentId: typeof formData.departmentId,
-        requestorName: typeof formData.requestorName,
-        requestorEmail: typeof formData.requestorEmail,
-        requestorPhone: typeof formData.requestorPhone
-      });
-
       this.debugData = formData;
 
-      this.apiService.submitContact(formData).subscribe({
-        next: (response) => {
-          console.log('✅ תגובת שרת:', response);
-          this.isLoading = false;
-          this.showSuccessMessage = true;
-          this.successRequestId = response.id;
-
-          this.snackBar.open(
-            `🎉 הפנייה נשלחה בהצלחה! מספר פנייה: ${response.id}`,
-            'סגור',
-            {
-              duration: 5000,
-              panelClass: ['success-snackbar']
-            }
-          );
-
-          setTimeout(() => {
-            this.resetForm();
-            this.showSuccessMessage = false;
-            this.successRequestId = null;
-          }, 5000);
-        },
-        error: (error) => {
-          console.error('❌ שגיאה מפורטת:', error);
-          console.error('❌ שגיאת HTTP מלאה:', {
-            status: error.status,
-            statusText: error.statusText,
-            url: error.url,
-            headers: error.headers,
-            error: error.error
-          });
-
-          this.isLoading = false;
-          this.lastError = {
-            status: error.status,
-            statusText: error.statusText,
-            url: error.url,
-            error: error.error
-          };
-
-          let errorMessage = 'שגיאה לא ידועה';
-
-          if (error.status === 0) {
-            errorMessage = 'אין חיבור לשרת - בדוק שהשרת פועל';
-          } else if (error.status === 400) {
-            errorMessage = 'נתונים לא תקינים - בדוק את השדות';
-          } else if (error.status === 500) {
-            errorMessage = 'שגיאת שרת פנימית - בדוק את קובץ הלוג של השרת';
+      this.apiService.submitContact(formData)
+        .pipe(takeUntil(this.destroy$)) // הוספת takeUntil
+        .subscribe({
+          next: (response) => {
+            this.handleSubmitSuccess(response);
+          },
+          error: (error) => {
+            this.handleSubmitError(error);
           }
-
-          this.snackBar.open(
-            `❌ ${errorMessage} (${error.status})`,
-            'סגור',
-            {
-              duration: 10000,
-              panelClass: ['error-snackbar']
-            }
-          );
-        }
-      });
+        });
     } else {
-      this.contactForm.markAllAsTouched();
-
-      // מציג איזה שדות לא תקינים
-      const invalidFields = Object.keys(this.contactForm.controls)
-        .filter(key => this.contactForm.get(key)?.invalid)
-        .join(', ');
-
-      console.log('❌ שדות לא תקינים:', invalidFields);
-
-      this.snackBar.open(
-        `⚠️ שדות לא תקינים: ${invalidFields}`,
-        'סגור',
-        { duration: 6000 }
-      );
+      this.handleFormInvalid();
     }
+  }
+
+  /**
+   * טיפול בהצלחת שליחה
+   */
+  private handleSubmitSuccess(response: any): void {
+    console.log('✅ תגובת שרת:', response);
+    this.isLoading = false;
+    this.showSuccessMessage = true;
+    this.successRequestId = response.id;
+
+    this.snackBar.open(
+      `🎉 הפנייה נשלחה בהצלחה! מספר פנייה: ${response.id}`,
+      'סגור',
+      {
+        duration: 5000,
+        panelClass: ['success-snackbar']
+      }
+    );
+
+    // שמירת timeout ID לביטול מאוחר יותר
+    this.successTimeoutId = window.setTimeout(() => {
+      this.resetForm();
+      this.showSuccessMessage = false;
+      this.successRequestId = null;
+    }, 5000);
+  }
+
+  /**
+   * טיפול בשגיאת שליחה
+   */
+  private handleSubmitError(error: any): void {
+    console.error('❌ שגיאה מפורטת:', error);
+
+    this.isLoading = false;
+    this.lastError = {
+      status: error.status,
+      statusText: error.statusText,
+      url: error.url,
+      error: error.error
+    };
+
+    let errorMessage = 'שגיאה לא ידועה';
+
+    if (error.status === 0) {
+      errorMessage = 'אין חיבור לשרת - בדוק שהשרת פועל';
+    } else if (error.status === 400) {
+      errorMessage = 'נתונים לא תקינים - בדוק את השדות';
+    } else if (error.status === 500) {
+      errorMessage = 'שגיאת שרת פנימית - בדוק את קובץ הלוג של השרת';
+    }
+
+    this.snackBar.open(
+      `❌ ${errorMessage} (${error.status})`,
+      'סגור',
+      {
+        duration: 10000,
+        panelClass: ['error-snackbar']
+      }
+    );
+  }
+
+  /**
+   * טיפול בטופס לא תקין
+   */
+  private handleFormInvalid(): void {
+    this.contactForm.markAllAsTouched();
+
+    // מציג איזה שדות לא תקינים
+    const invalidFields = Object.keys(this.contactForm.controls)
+      .filter(key => this.contactForm.get(key)?.invalid)
+      .join(', ');
+
+    console.log('❌ שדות לא תקינים:', invalidFields);
+
+    this.snackBar.open(
+      `⚠️ שדות לא תקינים: ${invalidFields}`,
+      'סגור',
+      { duration: 6000 }
+    );
   }
 
   /**
@@ -294,5 +320,26 @@ export class RequestFormComponent implements OnInit {
 
     this.debugData = {};
     this.snackBar.open('📝 הטופס אופס', 'סגור', { duration: 2000 });
+  }
+
+  /**
+   * ניקוי משאבים לפני השמדת הקומפוננטה
+   */
+  ngOnDestroy(): void {
+    console.clear();
+    console.log('RequestFormComponent destroyed');
+
+    // ביטול כל ה-subscriptions
+    this.destroy$.next();
+    this.destroy$.complete();
+
+    // ביטול timeouts אם קיימים
+    if (this.successTimeoutId) {
+      clearTimeout(this.successTimeoutId);
+    }
+
+    if (this.resetTimeoutId) {
+      clearTimeout(this.resetTimeoutId);
+    }
   }
 }

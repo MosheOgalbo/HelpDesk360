@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
@@ -8,6 +8,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatTableModule } from '@angular/material/table';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatIconModule } from '@angular/material/icon';
+import { Subject, takeUntil } from 'rxjs';
 import { ApiService } from '../../../../core/services/api.service';
 import { MonthlyReportData } from '../../../../core/models/request.model';
 
@@ -28,11 +29,17 @@ import { MonthlyReportData } from '../../../../core/models/request.model';
   templateUrl: './monthly-report.component.html',
   styleUrl: './monthly-report.component.css',
 })
-export class MonthlyReportComponent implements OnInit {
+export class MonthlyReportComponent implements OnInit, OnDestroy {
+  // Subject לניהול subscriptions
+  private destroy$ = new Subject<void>();
+
   filterForm!: FormGroup;
   reportData: MonthlyReportData | null = null;
   isLoading = false;
   hasSearched = false;
+
+  // משתנה לשמירת timeout ID
+  private loadTimeoutId?: number;
 
   // עמודות הטבלאות
   departmentColumns = ['department', 'count', 'percentage'];
@@ -69,7 +76,7 @@ export class MonthlyReportComponent implements OnInit {
   }
 
   /**
-   * טעינת דוח מהשרת (Stored Procedure)
+   * טעינת דוח מהשרת (Stored Procedure) - גרסה מתוקנת
    */
   loadReport(): void {
     this.isLoading = true;
@@ -77,25 +84,45 @@ export class MonthlyReportComponent implements OnInit {
 
     const { year, month } = this.filterForm.value;
 
-    this.apiService.getMonthlyReport(year, month).subscribe({
-      next: (data) => {
-        this.reportData = data;
-        this.isLoading = false;
-        console.log('דוח נטען:', data);
-      },
-      error: (error) => {
-        this.isLoading = false;
-        this.reportData = null;
-        console.error('שגיאה בטעינת הדוח:', error);
-      }
-    });
+    this.apiService.getMonthlyReport(year, month)
+      .pipe(takeUntil(this.destroy$)) // הוספת takeUntil למניעת memory leaks
+      .subscribe({
+        next: (data) => {
+          this.reportData = data;
+          this.isLoading = false;
+          console.log('דוח נטען:', data);
+        },
+        error: (error) => {
+          this.isLoading = false;
+          this.reportData = null;
+          console.error('שגיאה בטעינת הדוח:', error);
+          this.handleReportError(error);
+        }
+      });
   }
 
   /**
-   * טעינה אוטומטית של החודש הנוכחי
+   * טיפול בשגיאות טעינת הדוח
+   */
+  private handleReportError(error: any): void {
+    let errorMessage = 'שגיאה בטעינת הדוח';
+
+    if (error.status === 0) {
+      errorMessage = 'אין חיבור לשרת';
+    } else if (error.status === 404) {
+      errorMessage = 'הדוח לא נמצא';
+    } else if (error.status === 500) {
+      errorMessage = 'שגיאת שרת פנימית';
+    }
+
+    console.error(`❌ ${errorMessage}:`, error);
+  }
+
+  /**
+   * טעינה אוטומטית של החודש הנוכחי - גרסה מתוקנת
    */
   loadCurrentMonth(): void {
-    setTimeout(() => this.loadReport(), 800);
+    this.loadTimeoutId = window.setTimeout(() => this.loadReport(), 800);
   }
 
   /**
@@ -105,7 +132,7 @@ export class MonthlyReportComponent implements OnInit {
     if (!this.reportData?.totalRequests) return 0;
 
     const daysInMonth = new Date(this.reportData.year, this.reportData.month, 0).getDate();
-    return this.reportData.totalRequests / daysInMonth;
+    return Math.round((this.reportData.totalRequests / daysInMonth) * 100) / 100; // עיגול ל-2 ספרות אחרי הנקודה
   }
 
   /**
@@ -117,7 +144,12 @@ export class MonthlyReportComponent implements OnInit {
       'HR': '#10b981',
       'Finance': '#f59e0b',
       'Marketing': '#ef4444',
-      'Operations': '#8b5cf6'
+      'Operations': '#8b5cf6',
+      'מחלקת מחשבים': '#3b82f6',
+      'משאבי אנוש': '#10b981',
+      'כספים': '#f59e0b',
+      'שיווק': '#ef4444',
+      'תפעול': '#8b5cf6'
     };
     return colors[department] || '#6b7280';
   }
@@ -159,5 +191,48 @@ export class MonthlyReportComponent implements OnInit {
       'InProgress': 'status-progress'
     };
     return classes[status] || 'status-open';
+  }
+
+  /**
+   * רענון הדוח עם הפרמטרים הנוכחיים
+   */
+  refreshReport(): void {
+    this.loadReport();
+  }
+
+  /**
+   * איפוס הטופס לחודש הנוכחי
+   */
+  resetToCurrentMonth(): void {
+    const now = new Date();
+    this.filterForm.patchValue({
+      year: now.getFullYear(),
+      month: now.getMonth() + 1
+    });
+    this.loadReport();
+  }
+
+  /**
+   * בדיקה אם יש נתונים להצגה
+   */
+  hasData(): boolean {
+    return this.reportData !== null && this.reportData.totalRequests > 0;
+  }
+
+  /**
+   * ניקוי משאבים לפני השמדת הקומפוננטה
+   */
+  ngOnDestroy(): void {
+    console.clear();
+    console.log('MonthlyReportComponent destroyed');
+
+    // ביטול כל ה-subscriptions
+    this.destroy$.next();
+    this.destroy$.complete();
+
+    // ביטול timeout אם קיים
+    if (this.loadTimeoutId) {
+      clearTimeout(this.loadTimeoutId);
+    }
   }
 }
